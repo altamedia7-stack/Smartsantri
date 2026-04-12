@@ -1,0 +1,8 @@
+{
+  "name": "Smartsantri",
+  "description": "A production-ready multi-tenant attendance system with GPS lock, face recognition, and anti-fake GPS detection.",
+  "requestFramePermissions": [
+    "camera",
+    "geolocation"
+  ]
+}

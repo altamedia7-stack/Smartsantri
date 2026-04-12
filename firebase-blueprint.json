@@ -1,0 +1,89 @@
+{
+  "entities": {
+    "tenant": {
+      "title": "Tenant",
+      "description": "A school or company using the attendance system.",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string", "description": "Name of the school or company" },
+        "lat": { "type": "number", "description": "Latitude of the center point" },
+        "lng": { "type": "number", "description": "Longitude of the center point" },
+        "radius": { "type": "number", "description": "Allowed radius in meters" },
+        "status": { "type": "string", "enum": ["active", "inactive"], "description": "Subscription status" },
+        "subscription_plan": { "type": "string", "description": "Plan name" },
+        "check_in_time": { "type": "string" },
+        "check_in_end_time": { "type": "string" },
+        "check_out_time": { "type": "string" },
+        "check_out_end_time": { "type": "string" },
+        "off_days": { 
+          "type": "array", 
+          "items": { "type": "number" },
+          "description": "Weekly off days (0=Sun, 1=Mon, ..., 6=Sat)"
+        },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["name", "lat", "lng", "radius", "status"]
+    },
+    "user": {
+      "title": "User",
+      "description": "A person belonging to a tenant.",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "email": { "type": "string" },
+        "role": { "type": "string", "enum": ["ADMIN", "USER", "SUPER_ADMIN"] },
+        "tenant_id": { "type": "string" },
+        "face_descriptor": { "type": "array", "description": "Serialized face descriptor array" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["name", "email", "role", "tenant_id"]
+    },
+    "attendance": {
+      "title": "Attendance",
+      "description": "An attendance record for a user.",
+      "type": "object",
+      "properties": {
+        "tenant_id": { "type": "string" },
+        "user_id": { "type": "string" },
+        "check_in": { "type": "string", "format": "date-time" },
+        "check_out": { "type": "string", "format": "date-time" },
+        "lat": { "type": "number" },
+        "lng": { "type": "number" },
+        "photo_url": { "type": "string" },
+        "status": { "type": "string", "enum": ["valid", "rejected", "suspicious"] },
+        "rejection_reason": { "type": "string" }
+      },
+      "required": ["tenant_id", "user_id", "check_in", "status"]
+    },
+    "holiday": {
+      "title": "Holiday",
+      "description": "A holiday date for a tenant.",
+      "type": "object",
+      "properties": {
+        "tenant_id": { "type": "string" },
+        "date": { "type": "string", "description": "Date in YYYY-MM-DD format" },
+        "name": { "type": "string", "description": "Name of the holiday" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["tenant_id", "date", "name"]
+    }
+  },
+  "firestore": {
+    "/tenants/{tenantId}": {
+      "schema": "tenant",
+      "description": "Collection of tenants"
+    },
+    "/users/{userId}": {
+      "schema": "user",
+      "description": "Collection of users"
+    },
+    "/attendance/{attendanceId}": {
+      "schema": "attendance",
+      "description": "Collection of attendance logs"
+    },
+    "/holidays/{holidayId}": {
+      "schema": "holiday",
+      "description": "Collection of holidays"
+    }
+  }
+}

@@ -1,0 +1,121 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    //
+    // Collection: tenants
+    // Fields: name, lat, lng, radius, status, subscription_plan, createdAt
+    //
+    // Collection: users
+    // Fields: name, email, role, tenant_id, face_descriptor, createdAt
+    //
+    // Collection: attendance
+    // Fields: tenant_id, user_id, check_in, check_out, lat, lng, photo_url, status, rejection_reason
+    //
+    // ===============================================================
+
+    // Helper Functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function getProfile() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+
+    function isSuperAdmin() {
+      return isAuthenticated() && 
+        (('email' in request.auth.token && request.auth.token.email == "altamedia7@gmail.com") || 
+         (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
+          getProfile().get('role', '') == 'SUPER_ADMIN'));
+    }
+
+    function isAdmin() {
+      return isAuthenticated() && 
+        (isSuperAdmin() || 
+         (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
+          getProfile().get('role', '') == 'ADMIN'));
+    }
+
+    function isTenantAdmin(tenantId) {
+      return isAuthenticated() && 
+        (isSuperAdmin() || 
+         (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
+          getProfile().get('tenant_id', '') == tenantId && 
+          getProfile().get('role', '') == 'ADMIN'));
+    }
+
+    function isUser() {
+      return isAuthenticated() && 
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        getProfile().get('role', '') == 'USER';
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    // Tenants
+    match /tenants/{tenantId} {
+      allow read: if isAuthenticated();
+      allow create, delete: if isSuperAdmin();
+      allow update: if isSuperAdmin() || (isTenantAdmin(tenantId) && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name', 'check_in_time', 'check_in_end_time', 'check_out_time', 'check_out_end_time', 'off_days']));
+    }
+
+    // Users
+    match /users/{userId} {
+      allow read: if isAuthenticated() && (isOwner(userId) || isAdmin() || isSuperAdmin());
+      allow create: if isAuthenticated() && (isOwner(userId) || isSuperAdmin() || isTenantAdmin(request.resource.data.tenant_id));
+      allow update: if isAuthenticated() && (isOwner(userId) || isAdmin() || isSuperAdmin());
+      allow delete: if isSuperAdmin() || isTenantAdmin(resource.data.tenant_id);
+    }
+
+    // Attendance
+    match /attendance/{attendanceId} {
+      allow read: if isAuthenticated() && (
+        request.auth.uid == resource.data.user_id || 
+        isTenantAdmin(resource.data.tenant_id) || 
+        isSuperAdmin()
+      );
+      allow create: if isAuthenticated() && request.resource.data.user_id == request.auth.uid;
+      allow update: if isAuthenticated() && (
+        request.auth.uid == resource.data.user_id || 
+        isTenantAdmin(resource.data.tenant_id) || 
+        isSuperAdmin()
+      );
+      allow delete: if isSuperAdmin();
+    }
+
+    // Journals
+    match /journals/{journalId} {
+      allow read: if isAuthenticated() && (
+        request.auth.uid == resource.data.user_id || 
+        isTenantAdmin(resource.data.tenant_id) || 
+        isSuperAdmin()
+      );
+      allow create: if isAuthenticated() && request.resource.data.user_id == request.auth.uid;
+      allow update: if isAuthenticated() && (
+        request.auth.uid == resource.data.user_id || 
+        isTenantAdmin(resource.data.tenant_id) || 
+        isSuperAdmin()
+      );
+      allow delete: if isSuperAdmin();
+    }
+
+    // Holidays
+    match /holidays/{holidayId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && (isSuperAdmin() || 
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
+         getProfile().get('role', '') == 'ADMIN' && 
+         getProfile().get('tenant_id', '') == request.resource.data.tenant_id));
+      allow update, delete: if isAuthenticated() && (isSuperAdmin() || 
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
+         getProfile().get('role', '') == 'ADMIN' && 
+         getProfile().get('tenant_id', '') == resource.data.tenant_id));
+    }
+  }
+}
