@@ -42,30 +42,32 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <nav className="sticky top-0 z-50 border-b bg-white/80 backdrop-blur-md">
-        <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3 sm:px-6 lg:px-8">
-          <div className="flex items-center gap-2">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-green-600 text-white shadow-lg shadow-green-200">
-              <ShieldCheck className="h-6 w-6" />
+      {profile?.role !== 'USER' && (
+        <nav className="sticky top-0 z-50 border-b bg-white/80 backdrop-blur-md">
+          <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3 sm:px-6 lg:px-8">
+            <div className="flex items-center gap-2">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-green-600 text-white shadow-lg shadow-green-200">
+                <ShieldCheck className="h-6 w-6" />
+              </div>
+              <span className="text-xl font-bold tracking-tight text-gray-900">
+                Smart<span className="text-green-600">santri</span>
+              </span>
             </div>
-            <span className="text-xl font-bold tracking-tight text-gray-900">
-              Smart<span className="text-green-600">santri</span>
-            </span>
-          </div>
 
-          <div className="flex items-center gap-4">
-            <div className="hidden flex-col items-end sm:flex">
-              <span className="text-sm font-medium text-gray-900">{profile?.name || user.email}</span>
-              <span className="text-xs text-gray-500">{profile?.role || 'User'}</span>
+            <div className="flex items-center gap-4">
+              <div className="hidden flex-col items-end sm:flex">
+                <span className="text-sm font-medium text-gray-900">{profile?.name || user.email}</span>
+                <span className="text-xs text-gray-500">{profile?.role || 'User'}</span>
+              </div>
+              <Button variant="ghost" size="icon" onClick={handleLogout} className="text-gray-500 hover:text-red-600">
+                <LogOut className="h-5 w-5" />
+              </Button>
             </div>
-            <Button variant="ghost" size="icon" onClick={handleLogout} className="text-gray-500 hover:text-red-600">
-              <LogOut className="h-5 w-5" />
-            </Button>
           </div>
-        </div>
-      </nav>
+        </nav>
+      )}
 
-      <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+      <main className={`mx-auto max-w-7xl ${profile?.role === 'USER' ? '' : 'px-4 py-8 sm:px-6 lg:px-8'}`}>
         {profile?.role === 'SUPER_ADMIN' && <SuperAdminDashboard />}
         {profile?.role === 'ADMIN' && <AdminDashboard profile={profile} />}
         {profile?.role === 'USER' && <UserDashboard profile={profile} />}

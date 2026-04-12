@@ -64,3 +64,14 @@ export interface Holiday {
   name: string;
   createdAt: any;
 }
+
+export interface Announcement {
+  id: string;
+  tenant_id: string;
+  title: string;
+  message: string;
+  imageUrl?: string;
+  type: 'info' | 'birthday' | 'warning';
+  active: boolean;
+  createdAt: any;
+}

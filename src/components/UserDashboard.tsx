@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { db } from '../firebase';
 import { collection, addDoc, updateDoc, doc, serverTimestamp, query, where, orderBy, limit, onSnapshot } from 'firebase/firestore';
-import { UserProfile, AttendanceRecord, Tenant, Journal, Holiday } from '../types';
+import { UserProfile, AttendanceRecord, Tenant, Journal, Holiday, Announcement } from '../types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -9,7 +9,10 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
-import { Loader2, MapPin, Camera, CheckCircle2, XCircle, AlertTriangle, Clock, History, BookOpen, Plus, Home, User, Calendar, Lock } from 'lucide-react';
+import { auth } from '../firebase';
+import { signOut } from 'firebase/auth';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { Loader2, MapPin, Camera, CheckCircle2, XCircle, AlertTriangle, Clock, History, BookOpen, Plus, Home, User, Calendar, Lock, MoreVertical, Bell, LogOut, Send, Settings, Info } from 'lucide-react';
 import { toast } from 'sonner';
 import { validateLocation, getFaceDescriptor, loadFaceModels, compareFaces, calculateDistance } from '../lib/attendance';
 import { handleFirestoreError, OperationType } from '../lib/errorUtils';
@@ -20,6 +23,7 @@ export function UserDashboard({ profile }: { profile: UserProfile }) {
   const [history, setHistory] = useState<AttendanceRecord[]>([]);
   const [journals, setJournals] = useState<Journal[]>([]);
   const [holidays, setHolidays] = useState<Holiday[]>([]);
+  const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [loading, setLoading] = useState(true);
   const [isProcessing, setIsProcessing] = useState(false);
   const [location, setLocation] = useState<{ lat: number, lng: number, accuracy: number } | null>(null);
@@ -102,6 +106,22 @@ export function UserDashboard({ profile }: { profile: UserProfile }) {
       }
     );
 
+    // Fetch Announcements
+    const unsubAnnouncements = onSnapshot(
+      query(
+        collection(db, 'announcements'),
+        where('tenant_id', '==', profile.tenant_id),
+        where('active', '==', true),
+        orderBy('createdAt', 'desc')
+      ),
+      (snapshot) => {
+        setAnnouncements(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Announcement)));
+      },
+      (error) => {
+        handleFirestoreError(error, OperationType.LIST, 'announcements');
+      }
+    );
+
     // Watch Location
     const watchId = navigator.geolocation.watchPosition(
       (pos) => setLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude, accuracy: pos.coords.accuracy }),
@@ -114,6 +134,7 @@ export function UserDashboard({ profile }: { profile: UserProfile }) {
       unsubLogs();
       unsubJournals();
       unsubHolidays();
+      unsubAnnouncements();
       navigator.geolocation.clearWatch(watchId);
     };
   }, [profile.tenant_id, profile.id]);
@@ -407,10 +428,81 @@ export function UserDashboard({ profile }: { profile: UserProfile }) {
     <div className="space-y-6 sm:space-y-8 pb-24 sm:pb-8">
       {activeTab === 'home' && (
         <>
-          <div className="text-center">
-            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Selamat Datang, {profile.name}</h1>
-            <p className="text-sm sm:text-base text-gray-500">{tenant?.name}</p>
+          <div className="bg-green-600 px-4 pt-6 pb-10 sm:px-6 lg:px-8 rounded-b-[2rem] shadow-lg relative -mx-4 sm:-mx-6 lg:-mx-8 -mt-8 mb-8">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="h-12 w-12 overflow-hidden rounded-full border-2 border-white/20 bg-white/10">
+                  {profile.face_image_url ? (
+                    <img src={profile.face_image_url} alt="Profile" className="h-full w-full object-cover" />
+                  ) : (
+                    <User className="h-full w-full p-2 text-white" />
+                  )}
+                </div>
+                <div className="text-white">
+                  <h1 className="text-sm font-bold uppercase tracking-wide">{profile.name}</h1>
+                  <p className="text-[10px] text-green-100 uppercase">{tenant?.name || 'SMARTSANTRI'}</p>
+                </div>
+              </div>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="icon" className="text-white hover:bg-white/20">
+                    <Settings className="h-6 w-6" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-48 rounded-xl">
+                  <DropdownMenuItem onClick={() => signOut(auth)} className="cursor-pointer py-3 text-gray-700">
+                    <LogOut className="mr-3 h-4 w-4" />
+                    <span className="font-medium">Keluar</span>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setActiveTab('profile')} className="cursor-pointer py-3 text-gray-700">
+                    <User className="mr-3 h-4 w-4" />
+                    <span className="font-medium">Profil</span>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem className="cursor-pointer py-3 text-gray-700">
+                    <Bell className="mr-3 h-4 w-4" />
+                    <span className="font-medium">Notifikasi</span>
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+
+            <div className="mt-6 flex items-center gap-3">
+              <div className="relative flex-1">
+                <Input 
+                  placeholder="Sampaikan sesuatu..." 
+                  className="h-11 w-full rounded-full border-0 bg-white pl-5 pr-4 text-sm shadow-inner focus-visible:ring-0 text-gray-700 placeholder:text-gray-400"
+                />
+              </div>
+              <Button className="h-11 rounded-full bg-blue-500 px-6 font-semibold text-white shadow-md hover:bg-blue-600">
+                Kirim
+              </Button>
+            </div>
           </div>
+
+          {announcements.map(announcement => (
+            <Card key={announcement.id} className={`mx-auto w-full max-w-md border shadow-xl rounded-3xl overflow-hidden mb-8 ${
+              announcement.type === 'birthday' ? 'border-orange-100 shadow-orange-100/30 bg-[#fffdf5]' :
+              announcement.type === 'warning' ? 'border-red-100 shadow-red-100/30 bg-red-50/50' :
+              'border-blue-100 shadow-blue-100/30 bg-blue-50/50'
+            }`}>
+              <CardContent className="p-6 text-center">
+                <div className="mb-4 flex justify-center">
+                  {announcement.type === 'birthday' ? (
+                    <img src="https://cdn-icons-png.flaticon.com/512/4213/4213958.png" alt="Happy Birthday" className="h-20 object-contain drop-shadow-sm" />
+                  ) : announcement.type === 'warning' ? (
+                    <AlertTriangle className="h-16 w-16 text-red-500" />
+                  ) : (
+                    <Info className="h-16 w-16 text-blue-500" />
+                  )}
+                </div>
+                <p className="text-sm text-gray-700 leading-relaxed">
+                  <strong className="text-gray-900">{announcement.title}</strong>
+                  {announcement.type === 'birthday' ? ', ' : ' - '}
+                  {announcement.message}
+                </p>
+              </CardContent>
+            </Card>
+          ))}
 
           {(todayHoliday || isWeeklyOff) ? (
             <Card className="mx-auto w-full max-w-md border-none shadow-xl shadow-red-100/50 bg-red-50/30">

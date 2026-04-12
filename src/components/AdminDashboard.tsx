@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { db, storage } from '../firebase';
 import { collection, onSnapshot, addDoc, updateDoc, deleteDoc, doc, setDoc, serverTimestamp, query, where, orderBy, getDocs } from 'firebase/firestore';
-import { UserProfile, AttendanceRecord, Tenant, Journal, Holiday } from '../types';
+import { UserProfile, AttendanceRecord, Tenant, Journal, Holiday, Announcement } from '../types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -33,6 +33,7 @@ export function AdminDashboard({ profile }: { profile: UserProfile }) {
   const [logs, setLogs] = useState<AttendanceRecord[]>([]);
   const [journals, setJournals] = useState<Journal[]>([]);
   const [holidays, setHolidays] = useState<Holiday[]>([]);
+  const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [newHoliday, setNewHoliday] = useState({ 
     date: '', 
     day: -1, 
@@ -215,12 +216,25 @@ export function AdminDashboard({ profile }: { profile: UserProfile }) {
       handleFirestoreError(error, OperationType.LIST, 'holidays');
     });
 
+    // Fetch Announcements
+    const announcementsQuery = query(
+      collection(db, 'announcements'),
+      where('tenant_id', '==', profile.tenant_id),
+      orderBy('createdAt', 'desc')
+    );
+    const unsubAnnouncements = onSnapshot(announcementsQuery, (snapshot) => {
+      setAnnouncements(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Announcement)));
+    }, (error) => {
+      handleFirestoreError(error, OperationType.LIST, 'announcements');
+    });
+
     return () => {
       unsubTenant();
       unsubUsers();
       unsubLogs();
       unsubJournals();
       unsubHolidays();
+      unsubAnnouncements();
     };
   }, [profile.tenant_id]);
 
@@ -1002,6 +1016,57 @@ export function AdminDashboard({ profile }: { profile: UserProfile }) {
     }
   };
 
+  const [isAddingAnnouncement, setIsAddingAnnouncement] = useState(false);
+  const [newAnnouncement, setNewAnnouncement] = useState({
+    title: '',
+    message: '',
+    type: 'info' as 'info' | 'birthday' | 'warning',
+    active: true
+  });
+
+  const handleAddAnnouncement = async () => {
+    if (!newAnnouncement.title || !newAnnouncement.message) {
+      toast.error('Judul dan pesan harus diisi');
+      return;
+    }
+
+    setIsAddingAnnouncement(true);
+    try {
+      await addDoc(collection(db, 'announcements'), {
+        ...newAnnouncement,
+        tenant_id: profile.tenant_id,
+        createdAt: serverTimestamp()
+      });
+      toast.success('Pengumuman berhasil ditambahkan');
+      setNewAnnouncement({ title: '', message: '', type: 'info', active: true });
+    } catch (error: any) {
+      console.error("Error adding announcement:", error);
+      toast.error('Gagal menambahkan pengumuman');
+    } finally {
+      setIsAddingAnnouncement(false);
+    }
+  };
+
+  const handleDeleteAnnouncement = async (id: string) => {
+    try {
+      await deleteDoc(doc(db, 'announcements', id));
+      toast.success('Pengumuman berhasil dihapus');
+    } catch (error) {
+      toast.error('Gagal menghapus pengumuman');
+    }
+  };
+
+  const toggleAnnouncementStatus = async (id: string, currentStatus: boolean) => {
+    try {
+      await updateDoc(doc(db, 'announcements', id), {
+        active: !currentStatus
+      });
+      toast.success('Status pengumuman diperbarui');
+    } catch (error) {
+      toast.error('Gagal memperbarui status pengumuman');
+    }
+  };
+
   return (
     <div className="space-y-8">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -1330,6 +1395,7 @@ export function AdminDashboard({ profile }: { profile: UserProfile }) {
           <TabsTrigger value="overview">Ringkasan & Absensi</TabsTrigger>
           <TabsTrigger value="calendar">Kalender</TabsTrigger>
           <TabsTrigger value="journals">Jurnal Guru</TabsTrigger>
+          <TabsTrigger value="announcements">Pengumuman</TabsTrigger>
           <TabsTrigger value="settings">Pengaturan</TabsTrigger>
         </TabsList>
 
@@ -1686,6 +1752,122 @@ export function AdminDashboard({ profile }: { profile: UserProfile }) {
                   {showAllJournals ? 'Tampilkan Lebih Sedikit' : `Tampilkan Semua Jurnal (${journals.length})`}
                 </Button>
               )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="announcements" className="space-y-6">
+          <Card className="border-none shadow-sm">
+            <CardHeader className="flex flex-row items-center justify-between">
+              <div>
+                <CardTitle>Pengumuman & Flyer</CardTitle>
+                <CardDescription>Kelola informasi dan ucapan yang tampil di beranda karyawan</CardDescription>
+              </div>
+              <Dialog>
+                <DialogTrigger asChild>
+                  <Button className="bg-blue-600 hover:bg-blue-700">
+                    <Plus className="mr-2 h-4 w-4" /> Tambah Pengumuman
+                  </Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Tambah Pengumuman Baru</DialogTitle>
+                  </DialogHeader>
+                  <div className="grid gap-4 py-4">
+                    <div className="grid gap-2">
+                      <Label>Tipe Pengumuman</Label>
+                      <Select 
+                        value={newAnnouncement.type} 
+                        onValueChange={(v: any) => setNewAnnouncement({...newAnnouncement, type: v})}
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="info">Informasi Umum</SelectItem>
+                          <SelectItem value="birthday">Ulang Tahun</SelectItem>
+                          <SelectItem value="warning">Peringatan</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="grid gap-2">
+                      <Label>Judul / Nama</Label>
+                      <Input 
+                        placeholder={newAnnouncement.type === 'birthday' ? "Nama yang berulang tahun..." : "Judul pengumuman..."}
+                        value={newAnnouncement.title}
+                        onChange={e => setNewAnnouncement({...newAnnouncement, title: e.target.value})}
+                      />
+                    </div>
+                    <div className="grid gap-2">
+                      <Label>Pesan / Keterangan</Label>
+                      <Textarea 
+                        placeholder="Isi pesan pengumuman..."
+                        value={newAnnouncement.message}
+                        onChange={e => setNewAnnouncement({...newAnnouncement, message: e.target.value})}
+                        rows={3}
+                      />
+                    </div>
+                  </div>
+                  <DialogFooter>
+                    <Button onClick={handleAddAnnouncement} disabled={isAddingAnnouncement} className="bg-blue-600 hover:bg-blue-700">
+                      {isAddingAnnouncement ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                      Simpan Pengumuman
+                    </Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                {announcements.length === 0 ? (
+                  <div className="text-center py-8 text-gray-500">
+                    Belum ada pengumuman
+                  </div>
+                ) : (
+                  announcements.map((announcement) => (
+                    <div key={announcement.id} className="flex items-center justify-between p-4 border rounded-lg bg-white">
+                      <div className="flex items-start gap-4">
+                        <div className={`p-3 rounded-full ${
+                          announcement.type === 'birthday' ? 'bg-orange-100 text-orange-600' :
+                          announcement.type === 'warning' ? 'bg-red-100 text-red-600' :
+                          'bg-blue-100 text-blue-600'
+                        }`}>
+                          {announcement.type === 'birthday' ? <Calendar className="h-5 w-5" /> : <FileText className="h-5 w-5" />}
+                        </div>
+                        <div>
+                          <h4 className="font-bold text-gray-900">{announcement.title}</h4>
+                          <p className="text-sm text-gray-500 mt-1">{announcement.message}</p>
+                          <div className="flex items-center gap-2 mt-2">
+                            <Badge variant="outline" className="text-xs">
+                              {announcement.type === 'birthday' ? 'Ulang Tahun' : announcement.type === 'warning' ? 'Peringatan' : 'Info'}
+                            </Badge>
+                            <Badge variant={announcement.active ? "default" : "secondary"} className={announcement.active ? "bg-green-100 text-green-700 hover:bg-green-100" : ""}>
+                              {announcement.active ? 'Aktif' : 'Nonaktif'}
+                            </Badge>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          onClick={() => toggleAnnouncementStatus(announcement.id, announcement.active)}
+                        >
+                          {announcement.active ? 'Nonaktifkan' : 'Aktifkan'}
+                        </Button>
+                        <Button 
+                          variant="ghost" 
+                          size="icon"
+                          className="text-red-500 hover:text-red-700 hover:bg-red-50"
+                          onClick={() => handleDeleteAnnouncement(announcement.id)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
             </CardContent>
           </Card>
         </TabsContent>
