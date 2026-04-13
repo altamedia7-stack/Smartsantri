@@ -554,31 +554,29 @@ export function UserDashboard({ profile }: { profile: UserProfile }) {
                     </Badge>
                   </div>
 
-                  <Button 
-                    size="lg" 
-                    onClick={isCheckedIn ? handleCheckOut : handleCheckIn}
-                    disabled={isProcessing || !location}
-                    className={`h-20 w-full rounded-2xl text-xl font-bold shadow-lg ${isCheckedIn ? 'bg-orange-600 hover:bg-orange-700' : 'bg-green-600 hover:bg-green-700'}`}
-                  >
-                    {isProcessing ? <Loader2 className="mr-2 h-6 w-6 animate-spin" /> : null}
-                    {isCheckedIn ? 'Check Out' : 'Check In Sekarang'}
-                  </Button>
-
-                  <div className="mt-6 flex w-full flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-0 rounded-xl bg-gray-50 p-4">
-                    <div className="flex items-center gap-3">
-                      <MapPin className={`h-6 w-6 sm:h-5 sm:w-5 ${location ? 'text-green-600' : 'text-gray-400'}`} />
-                      <div className="text-left">
-                        <div className="text-sm sm:text-xs font-bold text-gray-900">Status GPS</div>
-                        <div className="text-xs sm:text-[10px] text-gray-500">
-                          {location ? `Akurasi: ${location.accuracy.toFixed(1)}m` : 'Mencari lokasi...'}
+                  <div className="w-full space-y-4">
+                    <div className="flex w-full flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-0 rounded-2xl bg-gray-50 p-5 border border-gray-100">
+                      <div className="flex items-center gap-4">
+                        <div className={`p-3 rounded-xl ${location ? 'bg-green-100 text-green-600' : 'bg-gray-100 text-gray-400'}`}>
+                          <MapPin className="h-6 w-6" />
+                        </div>
+                        <div className="text-left">
+                          <div className="text-sm font-bold text-gray-900">Status GPS</div>
+                          <div className="text-xs text-gray-500">
+                            {location ? `Akurasi: ${location.accuracy.toFixed(1)}m` : 'Mencari lokasi...'}
+                          </div>
                         </div>
                       </div>
+                      {location && tenant && (
+                        <Badge variant={calculateDistance(location.lat, location.lng, tenant.lat, tenant.lng) <= tenant.radius ? 'default' : 'destructive'} className={`w-full sm:w-auto justify-center py-1.5 px-4 rounded-lg ${calculateDistance(location.lat, location.lng, tenant.lat, tenant.lng) <= tenant.radius ? 'bg-green-100 text-green-700 hover:bg-green-100' : ''}`}>
+                          {calculateDistance(location.lat, location.lng, tenant.lat, tenant.lng) <= tenant.radius ? 'Di Dalam Area' : 'Di Luar Area'}
+                        </Badge>
+                      )}
                     </div>
-                    {location && tenant && (
-                      <Badge variant={calculateDistance(location.lat, location.lng, tenant.lat, tenant.lng) <= tenant.radius ? 'default' : 'destructive'} className={`w-full sm:w-auto justify-center ${calculateDistance(location.lat, location.lng, tenant.lat, tenant.lng) <= tenant.radius ? 'bg-green-100 text-green-700 hover:bg-green-100' : ''}`}>
-                        {calculateDistance(location.lat, location.lng, tenant.lat, tenant.lng) <= tenant.radius ? 'Di Dalam Area' : 'Di Luar Area'}
-                      </Badge>
-                    )}
+                    
+                    <p className="text-center text-[11px] text-gray-400 italic">
+                      Gunakan tombol tengah di menu bawah untuk melakukan absensi
+                    </p>
                   </div>
                 </CardContent>
               </Card>
@@ -803,35 +801,61 @@ export function UserDashboard({ profile }: { profile: UserProfile }) {
       )}
 
       {/* Bottom Navigation Bar for Mobile */}
-      <div className="fixed bottom-0 left-0 right-0 z-40 border-t bg-white pb-safe sm:hidden">
-        <div className="flex justify-around p-2">
+      <div className="fixed bottom-0 left-0 right-0 z-40 border-t bg-white/80 backdrop-blur-lg pb-safe sm:hidden">
+        <div className="flex justify-between items-center px-4 py-1 relative h-16">
           <button 
             onClick={() => setActiveTab('home')}
-            className={`flex flex-col items-center p-2 min-w-[64px] ${activeTab === 'home' ? 'text-green-600' : 'text-gray-500'}`}
+            className={`flex flex-col items-center py-2 min-w-[50px] transition-colors ${activeTab === 'home' ? 'text-green-600' : 'text-gray-400'}`}
           >
-            <Home className="h-6 w-6 mb-1" />
-            <span className="text-[10px] font-medium">Beranda</span>
+            <Home className="h-5 w-5 mb-1" />
+            <span className="text-[9px] font-bold">BERANDA</span>
           </button>
           <button 
             onClick={() => setActiveTab('journal')}
-            className={`flex flex-col items-center p-2 min-w-[64px] ${activeTab === 'journal' ? 'text-green-600' : 'text-gray-500'}`}
+            className={`flex flex-col items-center py-2 min-w-[50px] transition-colors ${activeTab === 'journal' ? 'text-green-600' : 'text-gray-400'}`}
           >
-            <BookOpen className="h-6 w-6 mb-1" />
-            <span className="text-[10px] font-medium">Jurnal</span>
+            <BookOpen className="h-5 w-5 mb-1" />
+            <span className="text-[9px] font-bold">JURNAL</span>
           </button>
+
+          {/* Central Check In/Out Button */}
+          <div className="relative -top-6">
+            <div className="absolute -inset-2 bg-white rounded-full shadow-md" />
+            <button
+              onClick={isCheckedIn ? handleCheckOut : handleCheckIn}
+              disabled={isProcessing || !location}
+              className={`relative flex h-16 w-16 items-center justify-center rounded-full shadow-2xl transition-all active:scale-90 border-4 border-white ${
+                isCheckedIn ? 'bg-orange-600 hover:bg-orange-700' : 'bg-green-600 hover:bg-green-700'
+              } ${isProcessing || !location ? 'opacity-50 grayscale' : ''}`}
+            >
+              {isProcessing ? (
+                <Loader2 className="h-8 w-8 animate-spin text-white" />
+              ) : isCheckedIn ? (
+                <LogOut className="h-8 w-8 text-white" />
+              ) : (
+                <Camera className="h-8 w-8 text-white" />
+              )}
+            </button>
+            <span className={`absolute -bottom-6 left-1/2 -translate-x-1/2 text-[10px] font-black tracking-tighter whitespace-nowrap ${
+              isCheckedIn ? 'text-orange-600' : 'text-green-600'
+            }`}>
+              {isCheckedIn ? 'CHECK OUT' : 'CHECK IN'}
+            </span>
+          </div>
+
           <button 
             onClick={() => setActiveTab('history')}
-            className={`flex flex-col items-center p-2 min-w-[64px] ${activeTab === 'history' ? 'text-green-600' : 'text-gray-500'}`}
+            className={`flex flex-col items-center py-2 min-w-[50px] transition-colors ${activeTab === 'history' ? 'text-green-600' : 'text-gray-400'}`}
           >
-            <History className="h-6 w-6 mb-1" />
-            <span className="text-[10px] font-medium">Riwayat</span>
+            <History className="h-5 w-5 mb-1" />
+            <span className="text-[9px] font-bold">RIWAYAT</span>
           </button>
           <button 
             onClick={() => setActiveTab('profile')}
-            className={`flex flex-col items-center p-2 min-w-[64px] ${activeTab === 'profile' ? 'text-green-600' : 'text-gray-500'}`}
+            className={`flex flex-col items-center py-2 min-w-[50px] transition-colors ${activeTab === 'profile' ? 'text-green-600' : 'text-gray-400'}`}
           >
-            <User className="h-6 w-6 mb-1" />
-            <span className="text-[10px] font-medium">Profil</span>
+            <User className="h-5 w-5 mb-1" />
+            <span className="text-[9px] font-bold">PROFIL</span>
           </button>
         </div>
       </div>
