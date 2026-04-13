@@ -428,10 +428,10 @@ export function UserDashboard({ profile }: { profile: UserProfile }) {
     <div className="space-y-6 sm:space-y-8 pb-24 sm:pb-8">
       {activeTab === 'home' && (
         <>
-          <div className="bg-green-600 px-4 pt-6 pb-10 sm:px-6 lg:px-8 rounded-b-[2rem] shadow-lg relative -mx-4 sm:-mx-6 lg:-mx-8 -mt-8 mb-8">
+          <div className="bg-green-600 px-4 pt-12 pb-16 sm:px-6 lg:px-8 rounded-b-[3.5rem] shadow-lg relative -mx-4 sm:-mx-6 lg:-mx-8 -mt-12 mb-8">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <div className="h-12 w-12 overflow-hidden rounded-full border-2 border-white/20 bg-white/10">
+                <div className="h-14 w-14 overflow-hidden rounded-full border-2 border-white/30 bg-white/10 shadow-inner">
                   {profile.face_image_url ? (
                     <img src={profile.face_image_url} alt="Profile" className="h-full w-full object-cover" />
                   ) : (
@@ -439,15 +439,13 @@ export function UserDashboard({ profile }: { profile: UserProfile }) {
                   )}
                 </div>
                 <div className="text-white">
-                  <h1 className="text-sm font-bold uppercase tracking-wide">{profile.name}</h1>
-                  <p className="text-[10px] text-green-100 uppercase">{tenant?.name || 'SMARTSANTRI'}</p>
+                  <h1 className="text-base font-bold uppercase tracking-wide leading-tight">{profile.name}</h1>
+                  <p className="text-[11px] text-green-100 uppercase font-medium tracking-wider">{tenant?.name || 'SMARTSANTRI'}</p>
                 </div>
               </div>
               <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="icon" className="text-white hover:bg-white/20">
-                    <Settings className="h-6 w-6" />
-                  </Button>
+                <DropdownMenuTrigger render={<Button variant="ghost" size="icon" className="text-white hover:bg-white/20" />}>
+                  <Settings className="h-6 w-6" />
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-48 rounded-xl">
                   <DropdownMenuItem onClick={() => signOut(auth)} className="cursor-pointer py-3 text-gray-700">
@@ -466,14 +464,14 @@ export function UserDashboard({ profile }: { profile: UserProfile }) {
               </DropdownMenu>
             </div>
 
-            <div className="mt-6 flex items-center gap-3">
+            <div className="mt-8 flex items-center gap-3">
               <div className="relative flex-1">
                 <Input 
                   placeholder="Sampaikan sesuatu..." 
-                  className="h-11 w-full rounded-full border-0 bg-white pl-5 pr-4 text-sm shadow-inner focus-visible:ring-0 text-gray-700 placeholder:text-gray-400"
+                  className="h-12 w-full rounded-full border-0 bg-white/95 pl-6 pr-4 text-sm shadow-xl focus-visible:ring-2 focus-visible:ring-white/20 text-gray-700 placeholder:text-gray-400 backdrop-blur-sm"
                 />
               </div>
-              <Button className="h-11 rounded-full bg-blue-500 px-6 font-semibold text-white shadow-md hover:bg-blue-600">
+              <Button className="h-12 rounded-full bg-blue-500 px-8 font-bold text-white shadow-lg hover:bg-blue-600 transition-all active:scale-95">
                 Kirim
               </Button>
             </div>

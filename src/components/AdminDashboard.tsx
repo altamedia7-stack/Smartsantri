@@ -1244,12 +1244,12 @@ export function AdminDashboard({ profile }: { profile: UserProfile }) {
             </div>
             <div className="flex gap-2 w-full md:w-auto">
               <DropdownMenu>
-                <DropdownMenuTrigger asChild>
+                <DropdownMenuTrigger render={
                   <Button 
                     className="flex-1 md:flex-none bg-green-600 hover:bg-green-700 text-white h-9"
-                  >
-                    <Share className="mr-2 h-4 w-4" /> Export
-                  </Button>
+                  />
+                }>
+                  <Share className="mr-2 h-4 w-4" /> Export
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-48">
                   <DropdownMenuItem onClick={() => setIsPDFExportDialogOpen(true)} className="cursor-pointer">
@@ -1765,10 +1765,10 @@ export function AdminDashboard({ profile }: { profile: UserProfile }) {
                 <CardDescription>Kelola informasi dan ucapan yang tampil di beranda karyawan</CardDescription>
               </div>
               <Dialog>
-                <DialogTrigger asChild>
-                  <Button className="bg-blue-600 hover:bg-blue-700">
-                    <Plus className="mr-2 h-4 w-4" /> Tambah Pengumuman
-                  </Button>
+                <DialogTrigger render={
+                  <Button className="bg-blue-600 hover:bg-blue-700" />
+                }>
+                  <Plus className="mr-2 h-4 w-4" /> Tambah Pengumuman
                 </DialogTrigger>
                 <DialogContent>
                   <DialogHeader>
