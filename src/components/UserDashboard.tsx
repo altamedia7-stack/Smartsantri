@@ -37,7 +37,7 @@ const WeeklyChart = ({ data }: { data: any[] }) => {
             cursor={{ fill: '#f9fafb' }}
             contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
           />
-          <Bar dataKey="present" radius={[4, 4, 0, 0]} barSize={12}>
+          <Bar dataKey="present" radius={[4, 4, 4, 4]} barSize={24}>
             {data.map((entry, index) => (
               <Cell key={`cell-${index}`} fill={entry.present > 0 ? '#22c55e' : '#ef4444'} />
             ))}
