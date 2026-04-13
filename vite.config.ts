@@ -36,6 +36,18 @@ export default defineConfig(({mode}) => {
               sizes: '512x512',
               type: 'image/svg+xml',
               purpose: 'maskable'
+            },
+            {
+              src: 'https://picsum.photos/seed/smartsantri/192/192',
+              sizes: '192x192',
+              type: 'image/png',
+              purpose: 'any'
+            },
+            {
+              src: 'https://picsum.photos/seed/smartsantri/512/512',
+              sizes: '512x512',
+              type: 'image/png',
+              purpose: 'any'
             }
           ]
         },
