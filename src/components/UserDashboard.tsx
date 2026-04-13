@@ -428,10 +428,10 @@ export function UserDashboard({ profile }: { profile: UserProfile }) {
     <div className="space-y-6 sm:space-y-8 pb-24 sm:pb-8">
       {activeTab === 'home' && (
         <>
-          <div className="bg-green-600 px-4 pt-12 pb-10 sm:px-6 lg:px-8 rounded-b-[3.5rem] shadow-lg relative -mx-4 sm:-mx-6 lg:-mx-8 -mt-12 mb-8">
+          <div className="bg-gradient-to-br from-green-600 via-green-600 to-green-700 px-4 pt-14 pb-8 sm:px-6 lg:px-8 shadow-md relative -mx-4 sm:-mx-6 lg:-mx-8 -mt-12 mb-8 border-b border-green-500/20">
             <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="h-14 w-14 overflow-hidden rounded-full border-2 border-white/30 bg-white/10 shadow-inner">
+              <div className="flex items-center gap-4">
+                <div className="h-14 w-14 overflow-hidden rounded-full border-2 border-white/40 bg-white/10 shadow-lg">
                   {profile.face_image_url ? (
                     <img src={profile.face_image_url} alt="Profile" className="h-full w-full object-cover" />
                   ) : (
@@ -439,8 +439,11 @@ export function UserDashboard({ profile }: { profile: UserProfile }) {
                   )}
                 </div>
                 <div className="text-white">
-                  <h1 className="text-base font-bold uppercase tracking-wide leading-tight">{profile.name}</h1>
-                  <p className="text-[11px] text-green-100 uppercase font-medium tracking-wider">{tenant?.name || 'SMARTSANTRI'}</p>
+                  <h1 className="text-lg font-bold tracking-tight leading-tight">{profile.name}</h1>
+                  <div className="flex items-center gap-1.5 mt-0.5">
+                    <div className="h-1.5 w-1.5 rounded-full bg-green-300 animate-pulse" />
+                    <p className="text-[11px] text-green-100 uppercase font-semibold tracking-widest opacity-90">{tenant?.name || 'SMARTSANTRI'}</p>
+                  </div>
                 </div>
               </div>
               <DropdownMenu>
