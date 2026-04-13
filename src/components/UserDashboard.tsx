@@ -12,7 +12,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, Dialog
 import { auth } from '../firebase';
 import { signOut } from 'firebase/auth';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { Loader2, MapPin, Camera, CheckCircle2, XCircle, AlertTriangle, Clock, History, BookOpen, Plus, Home, User, Calendar, Lock, MoreVertical, Bell, LogOut, Send, Settings, Info, ChevronRight, LogIn, LogOut as LogOutIcon, Scan } from 'lucide-react';
+import { Loader2, MapPin, Camera, CheckCircle2, XCircle, AlertTriangle, Clock, History, BookOpen, Plus, Home, User, Calendar, Lock, MoreVertical, Bell, LogOut, Send, Settings, Info, ChevronRight, LogIn, LogOut as LogOutIcon, Scan, RefreshCw } from 'lucide-react';
 import { motion } from 'motion/react';
 import { toast } from 'sonner';
 import { validateLocation, getFaceDescriptor, loadFaceModels, compareFaces, calculateDistance } from '../lib/attendance';
@@ -534,8 +534,20 @@ export function UserDashboard({ profile }: { profile: UserProfile }) {
             <div className="flex flex-col items-center justify-center gap-6">
               <Card className="w-full max-w-md border-none shadow-xl shadow-gray-200/50">
                 <CardContent className="flex flex-col items-center py-10">
-                  <div className={`mb-8 flex h-32 w-32 items-center justify-center rounded-full border-8 ${isCheckedIn ? 'border-orange-100 bg-orange-50 text-orange-600' : 'border-green-100 bg-green-50 text-green-600'} transition-all duration-500`}>
-                    {isCheckedIn ? <Clock className="h-16 w-16" /> : <CheckCircle2 className="h-16 w-16" />}
+                  <div className="relative mb-8">
+                    {location && (
+                      <div 
+                        className="absolute inset-0 rounded-full overflow-hidden opacity-40 blur-[1px]"
+                        style={{
+                          backgroundImage: `url(https://static-maps.yandex.ru/1.x/?ll=${location.lng},${location.lat}&z=16&l=map&size=250,250)`,
+                          backgroundSize: 'cover',
+                          backgroundPosition: 'center'
+                        }}
+                      />
+                    )}
+                    <div className={`relative flex h-32 w-32 items-center justify-center rounded-full border-8 ${isCheckedIn ? 'border-orange-100 bg-orange-50/80 text-orange-600' : 'border-green-100 bg-green-50/80 text-green-600'} transition-all duration-500 backdrop-blur-[2px] shadow-inner`}>
+                      {isCheckedIn ? <Clock className="h-16 w-16" /> : <CheckCircle2 className="h-16 w-16" />}
+                    </div>
                   </div>
 
                   <div className="mb-8 text-center">
@@ -561,8 +573,23 @@ export function UserDashboard({ profile }: { profile: UserProfile }) {
                         <div className={`p-3 rounded-2xl ${location ? 'bg-green-100 text-green-600' : 'bg-gray-100 text-gray-400'}`}>
                           <MapPin className="h-6 w-6" />
                         </div>
-                        <div className="text-left">
-                          <div className="text-sm font-bold text-gray-900">Status GPS</div>
+                        <div className="text-left flex-1">
+                          <div className="flex items-center justify-between">
+                            <div className="text-sm font-bold text-gray-900">Status GPS</div>
+                            <Button 
+                              variant="ghost" 
+                              size="icon" 
+                              className="h-6 w-6 text-gray-400 hover:text-green-600"
+                              onClick={() => {
+                                navigator.geolocation.getCurrentPosition(
+                                  (pos) => setLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude, accuracy: pos.coords.accuracy }),
+                                  () => toast.error('Gagal memperbarui lokasi')
+                                );
+                              }}
+                            >
+                              <RefreshCw className="h-3 w-3" />
+                            </Button>
+                          </div>
                           <div className="text-xs text-gray-500">
                             {location ? `Akurasi: ${location.accuracy.toFixed(1)}m` : 'Mencari lokasi...'}
                           </div>
