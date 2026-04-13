@@ -577,6 +577,19 @@ export function UserDashboard({ profile }: { profile: UserProfile }) {
                     <p className="text-center text-[11px] text-gray-400 italic">
                       Gunakan tombol tengah di menu bawah untuk melakukan absensi
                     </p>
+
+                    <div className="pt-4 border-t border-gray-100">
+                      <div className="flex items-center justify-between">
+                        <div className="text-sm font-bold text-gray-900">Status Hari Ini</div>
+                        {!lastLog || lastLog.check_in?.toDate().toDateString() !== new Date().toDateString() ? (
+                          <Badge variant="outline" className="bg-gray-50 text-gray-500 border-gray-200">Belum Check In</Badge>
+                        ) : !lastLog.check_out ? (
+                          <Badge variant="outline" className="bg-green-50 text-green-600 border-green-200">Sudah Check In</Badge>
+                        ) : (
+                          <Badge variant="outline" className="bg-blue-50 text-blue-600 border-blue-200">Selesai (Check Out)</Badge>
+                        )}
+                      </div>
+                    </div>
                   </div>
                 </CardContent>
               </Card>
