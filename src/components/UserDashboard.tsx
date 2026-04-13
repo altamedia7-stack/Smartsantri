@@ -13,7 +13,7 @@ import { auth } from '../firebase';
 import { signOut } from 'firebase/auth';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Loader2, MapPin, Camera, CheckCircle2, XCircle, AlertTriangle, Clock, History, BookOpen, Plus, Home, User, Calendar, Lock, MoreVertical, Bell, LogOut, Send, Settings, Info, ChevronRight, LogIn, LogOut as LogOutIcon, Scan, RefreshCw, Filter, Check, FileText, Image, Trash2, Edit, Search, ChevronLeft, Upload } from 'lucide-react';
+import { Loader2, MapPin, Camera, CheckCircle2, XCircle, AlertTriangle, Clock, History, BookOpen, Plus, Home, User, Users, Calendar, Lock, MoreVertical, Bell, LogOut, Send, Settings, Info, ChevronRight, LogIn, LogOut as LogOutIcon, Scan, RefreshCw, Filter, Check, FileText, Image, Trash2, Edit, Search, ChevronLeft, Upload } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { toast } from 'sonner';
 import { validateLocation, getFaceDescriptor, loadFaceModels, compareFaces, calculateDistance } from '../lib/attendance';
@@ -64,10 +64,9 @@ export function UserDashboard({ profile }: { profile: UserProfile }) {
   const [location, setLocation] = useState<{ lat: number, lng: number, accuracy: number } | null>(null);
   const [isCameraOpen, setIsCameraOpen] = useState(false);
   const [isRegisteringFace, setIsRegisteringFace] = useState(false);
-  const [isJournalOpen, setIsJournalOpen] = useState(false);
   const [isProfileCameraOpen, setIsProfileCameraOpen] = useState(false);
   const [newJournal, setNewJournal] = useState({ subject: '', class_name: '', time: '', material: '', description: '', is_draft: false });
-  const [isJournalDetailOpen, setIsJournalDetailOpen] = useState(false);
+  const [journalView, setJournalView] = useState<'list' | 'form' | 'detail'>('list');
   const [selectedJournal, setSelectedJournal] = useState<Journal | null>(null);
   const [journalFilter, setJournalFilter] = useState({ subject: 'all', class_name: 'all', status: 'all' });
   const [isFiltering, setIsFiltering] = useState(false);
@@ -372,7 +371,8 @@ export function UserDashboard({ profile }: { profile: UserProfile }) {
     const hasJournal = journals.some(j => j.attendance_id === lastLog.id);
     if (!hasJournal) {
       toast.error('Anda harus mengirimkan jurnal mengajar sebelum check-out.');
-      setIsJournalOpen(true);
+      setActiveTab('journal');
+      setJournalView('form');
       return;
     }
 
@@ -423,7 +423,7 @@ export function UserDashboard({ profile }: { profile: UserProfile }) {
         createdAt: serverTimestamp()
       });
       toast.success(isDraft ? 'Jurnal disimpan sebagai draft' : 'Jurnal berhasil dikirim');
-      setIsJournalOpen(false);
+      setJournalView('list');
       setNewJournal({ subject: '', class_name: '', time: '', material: '', description: '', is_draft: false });
       setTempPhoto(null);
     } catch (error) {
@@ -437,7 +437,7 @@ export function UserDashboard({ profile }: { profile: UserProfile }) {
     try {
       await deleteDoc(doc(db, 'journals', id));
       toast.success('Jurnal berhasil dihapus');
-      setIsJournalDetailOpen(false);
+      setJournalView('list');
     } catch (error) {
       toast.error('Gagal menghapus jurnal');
     }
@@ -735,48 +735,200 @@ export function UserDashboard({ profile }: { profile: UserProfile }) {
       )}
 
       {activeTab === 'journal' && (
-        <div className="w-full max-w-md mx-auto space-y-6 px-4 sm:px-0 pb-24">
-          {/* HEADER */}
-          <motion.div 
-            initial={{ opacity: 0, y: -10 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="flex items-center justify-between"
-          >
-            <div className="space-y-1">
-              <h3 className="text-3xl font-black text-gray-900 tracking-tight">Jurnal Harian</h3>
-              <div className="flex items-center gap-2">
-                <div className="h-1.5 w-1.5 rounded-full bg-green-500 animate-pulse" />
-                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-[0.2em]">
-                  {new Date().toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long' })}
-                </p>
-              </div>
-            </div>
-            <div className="flex items-center gap-2">
-              <Button 
-                variant="ghost" 
-                size="icon" 
-                onClick={() => setIsFiltering(!isFiltering)}
-                className={`h-12 w-12 rounded-2xl border border-gray-100 shadow-sm transition-all ${isFiltering ? 'bg-green-50 text-green-600 border-green-100' : 'bg-white text-gray-400'}`}
-              >
-                <Filter className="h-6 w-6" />
-              </Button>
-              <Dialog open={isJournalOpen} onOpenChange={setIsJournalOpen}>
-                <DialogTrigger asChild>
-                  <Button className="h-12 w-12 rounded-2xl bg-green-600 hover:bg-green-700 shadow-xl shadow-green-100 flex items-center justify-center text-white transition-all active:scale-95">
+        <div className="w-full max-w-md mx-auto space-y-6 px-4 pt-4 pb-24 sm:px-0">
+          {journalView === 'list' && (
+            <motion.div 
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: 20 }}
+              className="space-y-6"
+            >
+              {/* HEADER */}
+              <div className="flex items-center justify-between">
+                <div className="space-y-1">
+                  <h3 className="text-3xl font-black text-gray-900 tracking-tight">Jurnal Harian</h3>
+                  <div className="flex items-center gap-2">
+                    <div className="h-1.5 w-1.5 rounded-full bg-green-500 animate-pulse" />
+                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-[0.2em]">
+                      {new Date().toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long' })}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button 
+                    variant="ghost" 
+                    size="icon" 
+                    onClick={() => setIsFiltering(!isFiltering)}
+                    className={`h-12 w-12 rounded-2xl border border-gray-100 shadow-sm transition-all ${isFiltering ? 'bg-green-50 text-green-600 border-green-100' : 'bg-white text-gray-400'}`}
+                  >
+                    <Filter className="h-6 w-6" />
+                  </Button>
+                  <Button 
+                    onClick={() => {
+                      setNewJournal({ subject: '', class_name: '', time: '', material: '', description: '', is_draft: false });
+                      setTempPhoto(null);
+                      setJournalView('form');
+                    }}
+                    className="h-12 w-12 rounded-2xl bg-green-600 hover:bg-green-700 shadow-xl shadow-green-100 flex items-center justify-center text-white transition-all active:scale-95"
+                  >
                     <Plus className="h-6 w-6" />
                   </Button>
-                </DialogTrigger>
-                <DialogContent className="sm:max-w-md rounded-[2.5rem] p-0 overflow-hidden border-none shadow-2xl">
-                  <div className="bg-gradient-to-br from-green-600 to-emerald-500 p-8 text-white">
-                    <DialogTitle className="text-2xl font-black tracking-tight">Jurnal Baru</DialogTitle>
-                    <p className="text-sm text-white/80 font-medium mt-1">Catat aktivitas mengajar Anda hari ini.</p>
+                </div>
+              </div>
+
+              {/* FILTER BAR */}
+              <AnimatePresence>
+                {isFiltering && (
+                  <motion.div 
+                    initial={{ height: 0, opacity: 0 }}
+                    animate={{ height: 'auto', opacity: 1 }}
+                    exit={{ height: 0, opacity: 0 }}
+                    className="overflow-hidden"
+                  >
+                    <Card className="border-none shadow-xl shadow-gray-100/50 rounded-[2rem] bg-white p-4 space-y-4">
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-1.5">
+                          <Label className="text-[9px] font-black uppercase tracking-widest text-gray-400 ml-1">Mapel</Label>
+                          <Select onValueChange={(val) => setJournalFilter({...journalFilter, subject: val})}>
+                            <SelectTrigger className="h-10 rounded-xl bg-gray-50 border-none text-xs font-bold">
+                              <SelectValue placeholder="Semua Mapel" />
+                            </SelectTrigger>
+                            <SelectContent className="rounded-xl border-gray-100 shadow-xl">
+                              <SelectItem value="all">Semua Mapel</SelectItem>
+                              {SUBJECTS.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="space-y-1.5">
+                          <Label className="text-[9px] font-black uppercase tracking-widest text-gray-400 ml-1">Status</Label>
+                          <Select onValueChange={(val) => setJournalFilter({...journalFilter, status: val})}>
+                            <SelectTrigger className="h-10 rounded-xl bg-gray-50 border-none text-xs font-bold">
+                              <SelectValue placeholder="Semua Status" />
+                            </SelectTrigger>
+                            <SelectContent className="rounded-xl border-gray-100 shadow-xl">
+                              <SelectItem value="all">Semua Status</SelectItem>
+                              <SelectItem value="sent">Terkirim</SelectItem>
+                              <SelectItem value="draft">Draft</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
+                    </Card>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+              
+              {/* JOURNAL LIST */}
+              <div className="space-y-4">
+                {journals.filter(j => {
+                  const matchSubject = journalFilter.subject === 'all' || j.subject === journalFilter.subject;
+                  const matchStatus = journalFilter.status === 'all' || (journalFilter.status === 'draft' ? j.is_draft : !j.is_draft);
+                  return matchSubject && matchStatus;
+                }).length === 0 ? (
+                  <div className="flex flex-col items-center justify-center rounded-[2.5rem] border-2 border-dashed border-gray-100 bg-gray-50/30 py-20 text-center">
+                    <div className="h-20 w-20 rounded-full bg-white shadow-xl shadow-gray-100 flex items-center justify-center mb-6">
+                      <BookOpen className="h-10 w-10 text-gray-200" />
+                    </div>
+                    <p className="text-lg font-black text-gray-900 tracking-tight">Belum ada jurnal hari ini</p>
+                    <p className="text-xs text-gray-400 mt-2 max-w-[220px] mx-auto font-medium">Catat kegiatan mengajar Anda untuk dokumentasi yang lebih baik.</p>
                   </div>
-                  <div className="p-8 space-y-6 max-h-[70vh] overflow-y-auto">
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <Label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1">Mata Pelajaran</Label>
-                        <Select onValueChange={(val) => setNewJournal({...newJournal, subject: val})}>
-                          <SelectTrigger className="h-12 rounded-2xl bg-gray-50 border-none focus:ring-green-500">
+                ) : (
+                  journals.filter(j => {
+                    const matchSubject = journalFilter.subject === 'all' || j.subject === journalFilter.subject;
+                    const matchStatus = journalFilter.status === 'all' || (journalFilter.status === 'draft' ? j.is_draft : !j.is_draft);
+                    return matchSubject && matchStatus;
+                  }).map((journal, index) => (
+                    <motion.div 
+                      key={journal.id}
+                      initial={{ opacity: 0, scale: 0.95 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      transition={{ delay: index * 0.05 }}
+                      onClick={() => {
+                        setSelectedJournal(journal);
+                        setJournalView('detail');
+                      }}
+                      className="group relative overflow-hidden rounded-[2rem] border border-gray-50 bg-white p-4 shadow-xl shadow-gray-100/30 transition-all hover:shadow-2xl hover:shadow-green-100/20 hover:border-green-100 cursor-pointer active:scale-[0.98]"
+                    >
+                      <div className="flex flex-col gap-5">
+                        <div className="flex items-start justify-between gap-4">
+                          <div className="space-y-1.5">
+                            <div className="flex items-center gap-2">
+                              <Badge variant="secondary" className="bg-green-50 text-green-700 border-green-100 rounded-lg text-[9px] font-black uppercase tracking-widest px-2 py-0.5">
+                                {journal.class_name}
+                              </Badge>
+                              <span className="text-[10px] font-black text-gray-300 uppercase tracking-widest">
+                                {journal.time}
+                              </span>
+                            </div>
+                            <h4 className="text-xl font-black text-gray-900 leading-tight group-hover:text-green-600 transition-colors">
+                              {journal.subject}
+                            </h4>
+                          </div>
+                          <Badge className={`rounded-full px-3 py-1 text-[8px] font-black uppercase tracking-[0.15em] border-none shadow-sm ${
+                            journal.is_draft ? 'bg-gray-100 text-gray-500' : 'bg-green-500 text-white'
+                          }`}>
+                            {journal.is_draft ? 'Draft' : 'Terkirim'}
+                          </Badge>
+                        </div>
+
+                        <div className="relative">
+                          <p className="text-sm text-gray-500 leading-relaxed line-clamp-2 font-medium">
+                            {journal.material}
+                          </p>
+                        </div>
+
+                        <div className="pt-5 mt-auto border-t border-gray-50 flex items-center justify-between">
+                          <div className="flex items-center gap-3">
+                            <div className="h-8 w-8 rounded-full bg-gray-50 flex items-center justify-center text-gray-400">
+                              <Calendar className="h-4 w-4" />
+                            </div>
+                            <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">
+                              {journal.createdAt?.toDate().toLocaleDateString('id-ID', { day: 'numeric', month: 'short' })}
+                            </span>
+                          </div>
+                          <div className="h-10 w-10 rounded-xl bg-gray-50 flex items-center justify-center text-gray-300 group-hover:bg-green-600 group-hover:text-white transition-all shadow-sm">
+                            <ChevronRight className="h-5 w-5" />
+                          </div>
+                        </div>
+                      </div>
+                    </motion.div>
+                  ))
+                )}
+              </div>
+            </motion.div>
+          )}
+
+          {journalView === 'form' && (
+            <motion.div 
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -20 }}
+              className="space-y-6"
+            >
+              <div className="flex items-center gap-4">
+                <Button 
+                  variant="ghost" 
+                  size="icon" 
+                  onClick={() => setJournalView('list')}
+                  className="h-12 w-12 rounded-2xl border border-gray-100 shadow-sm bg-white text-gray-400 hover:text-gray-900"
+                >
+                  <ChevronLeft className="h-6 w-6" />
+                </Button>
+                <div className="space-y-1">
+                  <h3 className="text-2xl font-black text-gray-900 tracking-tight">Jurnal Baru</h3>
+                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-[0.2em]">Catat aktivitas mengajar</p>
+                </div>
+              </div>
+
+              <Card className="border-none shadow-xl shadow-gray-100/50 rounded-[2rem] bg-white overflow-hidden">
+                <div className="p-4 space-y-6">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1">Mata Pelajaran</Label>
+                      <div className="relative">
+                        <BookOpen className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 z-10" />
+                        <Select value={newJournal.subject} onValueChange={(val) => setNewJournal({...newJournal, subject: val})}>
+                          <SelectTrigger className="h-12 pl-11 rounded-2xl bg-gray-50 border-none focus:ring-green-500">
                             <SelectValue placeholder="Pilih Mapel" />
                           </SelectTrigger>
                           <SelectContent className="rounded-2xl border-gray-100 shadow-xl">
@@ -784,10 +936,13 @@ export function UserDashboard({ profile }: { profile: UserProfile }) {
                           </SelectContent>
                         </Select>
                       </div>
-                      <div className="space-y-2">
-                        <Label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1">Kelas</Label>
-                        <Select onValueChange={(val) => setNewJournal({...newJournal, class_name: val})}>
-                          <SelectTrigger className="h-12 rounded-2xl bg-gray-50 border-none focus:ring-green-500">
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1">Kelas</Label>
+                      <div className="relative">
+                        <Users className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 z-10" />
+                        <Select value={newJournal.class_name} onValueChange={(val) => setNewJournal({...newJournal, class_name: val})}>
+                          <SelectTrigger className="h-12 pl-11 rounded-2xl bg-gray-50 border-none focus:ring-green-500">
                             <SelectValue placeholder="Pilih Kelas" />
                           </SelectTrigger>
                           <SelectContent className="rounded-2xl border-gray-100 shadow-xl">
@@ -796,11 +951,14 @@ export function UserDashboard({ profile }: { profile: UserProfile }) {
                         </Select>
                       </div>
                     </div>
+                  </div>
 
-                    <div className="space-y-2">
-                      <Label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1">Jam Ke</Label>
-                      <Select onValueChange={(val) => setNewJournal({...newJournal, time: val})}>
-                        <SelectTrigger className="h-12 rounded-2xl bg-gray-50 border-none focus:ring-green-500">
+                  <div className="space-y-2">
+                    <Label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1">Jam Ke</Label>
+                    <div className="relative">
+                      <Clock className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 z-10" />
+                      <Select value={newJournal.time} onValueChange={(val) => setNewJournal({...newJournal, time: val})}>
+                        <SelectTrigger className="h-12 pl-11 rounded-2xl bg-gray-50 border-none focus:ring-green-500">
                           <SelectValue placeholder="Pilih Jam" />
                         </SelectTrigger>
                         <SelectContent className="rounded-2xl border-gray-100 shadow-xl">
@@ -808,305 +966,202 @@ export function UserDashboard({ profile }: { profile: UserProfile }) {
                         </SelectContent>
                       </Select>
                     </div>
+                  </div>
 
-                    <div className="space-y-2">
-                      <Label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1">Topik Pembelajaran</Label>
-                      <div className="relative">
-                        <FileText className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-                        <Input 
-                          className="h-12 pl-11 rounded-2xl bg-gray-50 border-none focus-visible:ring-green-500" 
-                          value={newJournal.material} 
-                          onChange={e => setNewJournal({...newJournal, material: e.target.value})} 
-                          placeholder="Contoh: Dasar Aljabar" 
-                        />
-                      </div>
+                  <div className="space-y-2">
+                    <Label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1">Topik Pembelajaran</Label>
+                    <div className="relative">
+                      <FileText className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                      <Input 
+                        className="h-12 pl-11 rounded-2xl bg-gray-50 border-none focus-visible:ring-green-500" 
+                        value={newJournal.material} 
+                        onChange={e => setNewJournal({...newJournal, material: e.target.value})} 
+                        placeholder="Contoh: Dasar Aljabar" 
+                      />
                     </div>
+                  </div>
 
-                    <div className="space-y-2">
-                      <Label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1">Deskripsi Kegiatan</Label>
+                  <div className="space-y-2">
+                    <Label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1">Deskripsi Kegiatan</Label>
+                    <div className="relative">
+                      <Edit className="absolute left-4 top-4 h-4 w-4 text-gray-400 z-10" />
                       <Textarea 
-                        className="min-h-[120px] rounded-2xl bg-gray-50 border-none focus-visible:ring-green-500 resize-none p-4" 
+                        className="min-h-[120px] pl-11 rounded-2xl bg-gray-50 border-none focus-visible:ring-green-500 resize-none py-4 pr-4" 
                         value={newJournal.description} 
                         onChange={e => setNewJournal({...newJournal, description: e.target.value})} 
                         placeholder="Tuliskan detail kegiatan belajar mengajar..." 
                       />
                     </div>
+                  </div>
 
-                    <div className="space-y-4">
-                      <div className="flex items-center justify-between">
-                        <Label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1">Kehadiran Siswa</Label>
-                        <Badge variant="outline" className="text-[9px] font-bold text-green-600 border-green-100 bg-green-50">Opsional</Badge>
-                      </div>
-                      <div className="grid grid-cols-2 gap-3">
-                        <Button 
-                          type="button"
-                          variant="outline" 
-                          className="h-12 rounded-xl border-gray-100 bg-gray-50 text-xs font-bold hover:bg-green-50 hover:text-green-600 hover:border-green-200 transition-all"
-                        >
-                          <Check className="mr-2 h-4 w-4" /> Semua Hadir
-                        </Button>
-                        <Button 
-                          type="button"
-                          variant="outline" 
-                          className="h-12 rounded-xl border-gray-100 bg-gray-50 text-xs font-bold hover:bg-red-50 hover:text-red-600 hover:border-red-200 transition-all"
-                        >
-                          <XCircle className="mr-2 h-4 w-4" /> Ada Absen
-                        </Button>
-                      </div>
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <Label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1">Kehadiran Siswa</Label>
+                      <Badge variant="outline" className="text-[9px] font-bold text-green-600 border-green-100 bg-green-50">Opsional</Badge>
                     </div>
-
-                    <div className="space-y-2">
-                      <Label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1">Foto Kegiatan</Label>
-                      <div 
-                        onClick={() => fileInputRef.current?.click()}
-                        className="relative h-32 w-full rounded-2xl border-2 border-dashed border-gray-200 bg-gray-50 flex flex-col items-center justify-center cursor-pointer hover:border-green-500 hover:bg-green-50 transition-all overflow-hidden"
+                    <div className="grid grid-cols-2 gap-3">
+                      <Button 
+                        type="button"
+                        variant="outline" 
+                        className="h-12 rounded-xl border-gray-100 bg-gray-50 text-xs font-bold hover:bg-green-50 hover:text-green-600 hover:border-green-200 transition-all"
                       >
-                        {tempPhoto ? (
-                          <img src={tempPhoto} alt="Preview" className="h-full w-full object-cover" />
-                        ) : (
-                          <>
-                            <Image className="h-8 w-8 text-gray-300 mb-2" />
-                            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Klik untuk upload</p>
-                          </>
-                        )}
-                        <input 
-                          type="file" 
-                          ref={fileInputRef} 
-                          className="hidden" 
-                          accept="image/*" 
-                          onChange={handlePhotoUpload} 
-                        />
-                      </div>
+                        <Check className="mr-2 h-4 w-4" /> Semua Hadir
+                      </Button>
+                      <Button 
+                        type="button"
+                        variant="outline" 
+                        className="h-12 rounded-xl border-gray-100 bg-gray-50 text-xs font-bold hover:bg-red-50 hover:text-red-600 hover:border-red-200 transition-all"
+                      >
+                        <XCircle className="mr-2 h-4 w-4" /> Ada Absen
+                      </Button>
                     </div>
                   </div>
-                  <div className="p-8 bg-gray-50 flex flex-col gap-3">
-                    <Button 
-                      onClick={() => handleAddJournal(false)} 
-                      disabled={isProcessing} 
-                      className="h-14 rounded-2xl bg-gradient-to-r from-green-600 to-emerald-500 hover:from-green-700 hover:to-emerald-600 font-black uppercase tracking-widest text-white shadow-xl shadow-green-200"
-                    >
-                      {isProcessing ? <Loader2 className="h-5 w-5 animate-spin" /> : 'Simpan Jurnal'}
-                    </Button>
-                    <Button 
-                      variant="ghost" 
-                      onClick={() => handleAddJournal(true)}
-                      disabled={isProcessing}
-                      className="h-14 rounded-2xl font-bold text-gray-500 hover:bg-gray-100"
-                    >
-                      Simpan sebagai Draft
-                    </Button>
-                  </div>
-                </DialogContent>
-              </Dialog>
-            </div>
-          </motion.div>
 
-          {/* FILTER BAR */}
-          <AnimatePresence>
-            {isFiltering && (
-              <motion.div 
-                initial={{ height: 0, opacity: 0 }}
-                animate={{ height: 'auto', opacity: 1 }}
-                exit={{ height: 0, opacity: 0 }}
-                className="overflow-hidden"
-              >
-                <Card className="border-none shadow-xl shadow-gray-100/50 rounded-[2rem] bg-white p-6 space-y-4">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-1.5">
-                      <Label className="text-[9px] font-black uppercase tracking-widest text-gray-400 ml-1">Mapel</Label>
-                      <Select onValueChange={(val) => setJournalFilter({...journalFilter, subject: val})}>
-                        <SelectTrigger className="h-10 rounded-xl bg-gray-50 border-none text-xs font-bold">
-                          <SelectValue placeholder="Semua Mapel" />
-                        </SelectTrigger>
-                        <SelectContent className="rounded-xl border-gray-100 shadow-xl">
-                          <SelectItem value="all">Semua Mapel</SelectItem>
-                          {SUBJECTS.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="space-y-1.5">
-                      <Label className="text-[9px] font-black uppercase tracking-widest text-gray-400 ml-1">Status</Label>
-                      <Select onValueChange={(val) => setJournalFilter({...journalFilter, status: val})}>
-                        <SelectTrigger className="h-10 rounded-xl bg-gray-50 border-none text-xs font-bold">
-                          <SelectValue placeholder="Semua Status" />
-                        </SelectTrigger>
-                        <SelectContent className="rounded-xl border-gray-100 shadow-xl">
-                          <SelectItem value="all">Semua Status</SelectItem>
-                          <SelectItem value="sent">Terkirim</SelectItem>
-                          <SelectItem value="draft">Draft</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-                </Card>
-              </motion.div>
-            )}
-          </AnimatePresence>
-          
-          {/* JOURNAL LIST */}
-          <div className="space-y-4">
-            {journals.filter(j => {
-              const matchSubject = journalFilter.subject === 'all' || j.subject === journalFilter.subject;
-              const matchStatus = journalFilter.status === 'all' || (journalFilter.status === 'draft' ? j.is_draft : !j.is_draft);
-              return matchSubject && matchStatus;
-            }).length === 0 ? (
-              <div className="flex flex-col items-center justify-center rounded-[2.5rem] border-2 border-dashed border-gray-100 bg-gray-50/30 py-20 text-center">
-                <div className="h-20 w-20 rounded-full bg-white shadow-xl shadow-gray-100 flex items-center justify-center mb-6">
-                  <BookOpen className="h-10 w-10 text-gray-200" />
-                </div>
-                <p className="text-lg font-black text-gray-900 tracking-tight">Belum ada jurnal hari ini</p>
-                <p className="text-xs text-gray-400 mt-2 max-w-[220px] mx-auto font-medium">Catat kegiatan mengajar Anda untuk dokumentasi yang lebih baik.</p>
-              </div>
-            ) : (
-              journals.filter(j => {
-                const matchSubject = journalFilter.subject === 'all' || j.subject === journalFilter.subject;
-                const matchStatus = journalFilter.status === 'all' || (journalFilter.status === 'draft' ? j.is_draft : !j.is_draft);
-                return matchSubject && matchStatus;
-              }).map((journal, index) => (
-                <motion.div 
-                  key={journal.id}
-                  initial={{ opacity: 0, scale: 0.95 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  transition={{ delay: index * 0.05 }}
-                  onClick={() => {
-                    setSelectedJournal(journal);
-                    setIsJournalDetailOpen(true);
-                  }}
-                  className="group relative overflow-hidden rounded-[2rem] border border-gray-50 bg-white p-6 shadow-xl shadow-gray-100/30 transition-all hover:shadow-2xl hover:shadow-green-100/20 hover:border-green-100 cursor-pointer active:scale-[0.98]"
-                >
-                  <div className="flex flex-col gap-5">
-                    <div className="flex items-start justify-between gap-4">
-                      <div className="space-y-1.5">
-                        <div className="flex items-center gap-2">
-                          <Badge variant="secondary" className="bg-green-50 text-green-700 border-green-100 rounded-lg text-[9px] font-black uppercase tracking-widest px-2 py-0.5">
-                            {journal.class_name}
-                          </Badge>
-                          <span className="text-[10px] font-black text-gray-300 uppercase tracking-widest">
-                            {journal.time}
-                          </span>
-                        </div>
-                        <h4 className="text-xl font-black text-gray-900 leading-tight group-hover:text-green-600 transition-colors">
-                          {journal.subject}
-                        </h4>
-                      </div>
-                      <Badge className={`rounded-full px-3 py-1 text-[8px] font-black uppercase tracking-[0.15em] border-none shadow-sm ${
-                        journal.is_draft ? 'bg-gray-100 text-gray-500' : 'bg-green-500 text-white'
-                      }`}>
-                        {journal.is_draft ? 'Draft' : 'Terkirim'}
-                      </Badge>
-                    </div>
-
-                    <div className="relative">
-                      <p className="text-sm text-gray-500 leading-relaxed line-clamp-2 font-medium">
-                        {journal.material}
-                      </p>
-                    </div>
-
-                    <div className="pt-5 mt-auto border-t border-gray-50 flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <div className="h-8 w-8 rounded-full bg-gray-50 flex items-center justify-center text-gray-400">
-                          <Calendar className="h-4 w-4" />
-                        </div>
-                        <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">
-                          {journal.createdAt?.toDate().toLocaleDateString('id-ID', { day: 'numeric', month: 'short' })}
-                        </span>
-                      </div>
-                      <div className="h-10 w-10 rounded-xl bg-gray-50 flex items-center justify-center text-gray-300 group-hover:bg-green-600 group-hover:text-white transition-all shadow-sm">
-                        <ChevronRight className="h-5 w-5" />
-                      </div>
-                    </div>
-                  </div>
-                </motion.div>
-              ))
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* JOURNAL DETAIL DIALOG */}
-      <Dialog open={isJournalDetailOpen} onOpenChange={setIsJournalDetailOpen}>
-        <DialogContent className="sm:max-w-md rounded-[2.5rem] p-0 overflow-hidden border-none shadow-2xl">
-          {selectedJournal && (
-            <>
-              <div className={`p-8 text-white ${selectedJournal.is_draft ? 'bg-gray-500' : 'bg-green-600'}`}>
-                <div className="flex items-center justify-between mb-4">
-                  <Badge className="bg-white/20 text-white border-none backdrop-blur-md px-3 py-1 rounded-full text-[9px] font-black tracking-widest uppercase">
-                    {selectedJournal.is_draft ? 'Draft' : 'Terkirim'}
-                  </Badge>
-                  <button onClick={() => setIsJournalDetailOpen(false)} className="text-white/60 hover:text-white transition-colors">
-                    <XCircle className="h-6 w-6" />
-                  </button>
-                </div>
-                <h3 className="text-3xl font-black tracking-tight">{selectedJournal.subject}</h3>
-                <div className="flex items-center gap-3 mt-2 text-white/80 text-xs font-bold uppercase tracking-widest">
-                  <span>{selectedJournal.class_name}</span>
-                  <div className="h-1 w-1 rounded-full bg-white/40" />
-                  <span>{selectedJournal.time}</span>
-                </div>
-              </div>
-              <div className="p-8 space-y-8 max-h-[70vh] overflow-y-auto">
-                <div className="space-y-2">
-                  <Label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1">Topik Pembelajaran</Label>
-                  <p className="text-lg font-bold text-gray-900 leading-tight">{selectedJournal.material}</p>
-                </div>
-
-                <div className="space-y-2">
-                  <Label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1">Deskripsi Kegiatan</Label>
-                  <div className="bg-gray-50 rounded-2xl p-5 border border-gray-100">
-                    <p className="text-sm text-gray-600 leading-relaxed font-medium whitespace-pre-wrap">{selectedJournal.description}</p>
-                  </div>
-                </div>
-
-                {selectedJournal.photo_url && (
                   <div className="space-y-2">
                     <Label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1">Foto Kegiatan</Label>
-                    <div className="relative aspect-video w-full rounded-2xl overflow-hidden border border-gray-100 shadow-lg">
-                      <img src={selectedJournal.photo_url} alt="Kegiatan" className="h-full w-full object-cover" />
+                    <div 
+                      onClick={() => fileInputRef.current?.click()}
+                      className="relative h-32 w-full rounded-2xl border-2 border-dashed border-gray-200 bg-gray-50 flex flex-col items-center justify-center cursor-pointer hover:border-green-500 hover:bg-green-50 transition-all overflow-hidden"
+                    >
+                      {tempPhoto ? (
+                        <img src={tempPhoto} alt="Preview" className="h-full w-full object-cover" />
+                      ) : (
+                        <>
+                          <Image className="h-8 w-8 text-gray-300 mb-2" />
+                          <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Klik untuk upload</p>
+                        </>
+                      )}
+                      <input 
+                        type="file" 
+                        ref={fileInputRef} 
+                        className="hidden" 
+                        accept="image/*" 
+                        onChange={handlePhotoUpload} 
+                      />
                     </div>
                   </div>
-                )}
+                </div>
+                <div className="p-4 bg-gray-50 flex flex-col gap-3">
+                  <Button 
+                    onClick={() => handleAddJournal(false)} 
+                    disabled={isProcessing} 
+                    className="h-14 rounded-2xl bg-gradient-to-r from-green-600 to-emerald-500 hover:from-green-700 hover:to-emerald-600 font-black uppercase tracking-widest text-white shadow-xl shadow-green-200"
+                  >
+                    {isProcessing ? <Loader2 className="h-5 w-5 animate-spin" /> : 'Simpan Jurnal'}
+                  </Button>
+                  <Button 
+                    variant="ghost" 
+                    onClick={() => handleAddJournal(true)}
+                    disabled={isProcessing}
+                    className="h-14 rounded-2xl font-bold text-gray-500 hover:bg-gray-100"
+                  >
+                    Simpan sebagai Draft
+                  </Button>
+                </div>
+              </Card>
+            </motion.div>
+          )}
 
-                <div className="flex items-center gap-4 pt-4">
-                  <div className="flex-1 p-4 rounded-2xl bg-gray-50 border border-gray-100">
-                    <p className="text-[9px] font-black uppercase tracking-widest text-gray-400 mb-1">Dibuat Pada</p>
-                    <p className="text-xs font-bold text-gray-900">
-                      {selectedJournal.createdAt?.toDate().toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
-                    </p>
-                  </div>
+          {journalView === 'detail' && selectedJournal && (
+            <motion.div 
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -20 }}
+              className="space-y-6"
+            >
+              <div className="flex items-center gap-4">
+                <Button 
+                  variant="ghost" 
+                  size="icon" 
+                  onClick={() => setJournalView('list')}
+                  className="h-12 w-12 rounded-2xl border border-gray-100 shadow-sm bg-white text-gray-400 hover:text-gray-900"
+                >
+                  <ChevronLeft className="h-6 w-6" />
+                </Button>
+                <div className="space-y-1">
+                  <h3 className="text-2xl font-black text-gray-900 tracking-tight">Detail Jurnal</h3>
+                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-[0.2em]">Informasi lengkap</p>
                 </div>
               </div>
-              <div className="p-8 bg-gray-50 flex gap-3">
-                <Button 
-                  variant="outline" 
-                  className="flex-1 h-14 rounded-2xl font-bold text-gray-500 border-gray-200 bg-white hover:bg-red-50 hover:text-red-600 hover:border-red-100 transition-all"
-                  onClick={() => handleDeleteJournal(selectedJournal.id)}
-                >
-                  <Trash2 className="mr-2 h-5 w-5" /> Hapus
-                </Button>
-                <Button 
-                  className="flex-1 h-14 rounded-2xl font-black uppercase tracking-widest bg-green-600 hover:bg-green-700 shadow-lg shadow-green-100"
-                  onClick={() => {
-                    // Pre-fill form and open dialog
-                    setNewJournal({
-                      subject: selectedJournal.subject,
-                      class_name: selectedJournal.class_name,
-                      time: selectedJournal.time,
-                      material: selectedJournal.material,
-                      description: selectedJournal.description,
-                      is_draft: selectedJournal.is_draft || false
-                    });
-                    setTempPhoto(selectedJournal.photo_url || null);
-                    setIsJournalDetailOpen(false);
-                    setIsJournalOpen(true);
-                  }}
-                >
-                  <Edit className="mr-2 h-5 w-5" /> Edit
-                </Button>
-              </div>
-            </>
+
+              <Card className="border-none shadow-xl shadow-gray-100/50 rounded-[2rem] bg-white overflow-hidden">
+                <div className={`p-4 text-white ${selectedJournal.is_draft ? 'bg-gray-500' : 'bg-gradient-to-br from-green-600 to-emerald-500'}`}>
+                  <div className="flex items-center justify-between mb-4">
+                    <Badge className="bg-white/20 text-white border-none backdrop-blur-md px-3 py-1 rounded-full text-[9px] font-black tracking-widest uppercase">
+                      {selectedJournal.is_draft ? 'Draft' : 'Terkirim'}
+                    </Badge>
+                  </div>
+                  <h3 className="text-3xl font-black tracking-tight">{selectedJournal.subject}</h3>
+                  <div className="flex items-center gap-3 mt-2 text-white/80 text-xs font-bold uppercase tracking-widest">
+                    <span>{selectedJournal.class_name}</span>
+                    <div className="h-1 w-1 rounded-full bg-white/40" />
+                    <span>{selectedJournal.time}</span>
+                  </div>
+                </div>
+                
+                <div className="p-4 space-y-6">
+                  <div className="space-y-2">
+                    <Label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1">Topik Pembelajaran</Label>
+                    <p className="text-lg font-bold text-gray-900 leading-tight">{selectedJournal.material}</p>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1">Deskripsi Kegiatan</Label>
+                    <div className="bg-gray-50 rounded-2xl p-5 border border-gray-100">
+                      <p className="text-sm text-gray-600 leading-relaxed font-medium whitespace-pre-wrap">{selectedJournal.description}</p>
+                    </div>
+                  </div>
+
+                  {selectedJournal.photo_url && (
+                    <div className="space-y-2">
+                      <Label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1">Foto Kegiatan</Label>
+                      <div className="relative aspect-video w-full rounded-2xl overflow-hidden border border-gray-100 shadow-lg">
+                        <img src={selectedJournal.photo_url} alt="Kegiatan" className="h-full w-full object-cover" />
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="flex items-center gap-4 pt-4">
+                    <div className="flex-1 p-4 rounded-2xl bg-gray-50 border border-gray-100">
+                      <p className="text-[9px] font-black uppercase tracking-widest text-gray-400 mb-1">Dibuat Pada</p>
+                      <p className="text-xs font-bold text-gray-900">
+                        {selectedJournal.createdAt?.toDate().toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+                
+                <div className="p-4 bg-gray-50 flex gap-3">
+                  <Button 
+                    variant="outline" 
+                    className="flex-1 h-14 rounded-2xl font-bold text-gray-500 border-gray-200 bg-white hover:bg-red-50 hover:text-red-600 hover:border-red-100 transition-all"
+                    onClick={() => handleDeleteJournal(selectedJournal.id)}
+                  >
+                    <Trash2 className="mr-2 h-5 w-5" /> Hapus
+                  </Button>
+                  <Button 
+                    className="flex-1 h-14 rounded-2xl font-black uppercase tracking-widest bg-green-600 hover:bg-green-700 shadow-lg shadow-green-100"
+                    onClick={() => {
+                      setNewJournal({
+                        subject: selectedJournal.subject,
+                        class_name: selectedJournal.class_name,
+                        time: selectedJournal.time,
+                        material: selectedJournal.material,
+                        description: selectedJournal.description,
+                        is_draft: selectedJournal.is_draft || false
+                      });
+                      setTempPhoto(selectedJournal.photo_url || null);
+                      setJournalView('form');
+                    }}
+                  >
+                    <Edit className="mr-2 h-5 w-5" /> Edit
+                  </Button>
+                </div>
+              </Card>
+            </motion.div>
           )}
-        </DialogContent>
-      </Dialog>
+        </div>
+      )}
 
       {activeTab === 'history' && (
         <div className="w-full max-w-md mx-auto space-y-6 px-4 sm:px-0 pb-24">
