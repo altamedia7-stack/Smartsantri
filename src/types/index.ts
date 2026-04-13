@@ -24,6 +24,9 @@ export interface UserProfile {
   tenant_id: string;
   face_descriptor?: number[];
   face_image_url?: string;
+  phone?: string;
+  nip_nis?: string;
+  address?: string;
   createdAt: any;
 }
 
