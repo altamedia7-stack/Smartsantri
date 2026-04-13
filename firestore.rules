@@ -53,7 +53,7 @@ service cloud.firestore {
     match /tenants/{tenantId} {
       allow read: if isAuthenticated();
       allow create, delete: if isSuperAdmin();
-      allow update: if isSuperAdmin() || (isTenantAdmin(tenantId) && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name', 'check_in_time', 'check_in_end_time', 'check_out_time', 'check_out_end_time', 'off_days']));
+      allow update: if isSuperAdmin() || (isTenantAdmin(tenantId) && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name', 'check_in_time', 'check_in_end_time', 'check_out_time', 'check_out_end_time', 'off_days', 'is_journal_enabled']));
     }
 
     // Users
