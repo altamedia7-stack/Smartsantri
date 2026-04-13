@@ -188,6 +188,12 @@ export function UserDashboard({ profile }: { profile: UserProfile }) {
     };
   }, [profile.tenant_id, profile.id]);
 
+  useEffect(() => {
+    if (tenant?.is_journal_enabled === false && activeTab === 'journal') {
+      setActiveTab('home');
+    }
+  }, [tenant?.is_journal_enabled, activeTab]);
+
   const handleLogout = async () => {
     try {
       await signOut(auth);
@@ -816,7 +822,7 @@ export function UserDashboard({ profile }: { profile: UserProfile }) {
         </>
       )}
 
-      {activeTab === 'journal' && (
+      {activeTab === 'journal' && tenant?.is_journal_enabled !== false && (
         <div className="w-full max-w-md mx-auto space-y-6 px-4 pt-4 pb-24 sm:px-0">
           {journalView === 'list' && (
             <motion.div 
@@ -1866,13 +1872,16 @@ export function UserDashboard({ profile }: { profile: UserProfile }) {
             <Home className="h-6 w-6" />
             <span className="text-[8px] font-black mt-1 uppercase tracking-widest">Home</span>
           </button>
-          <button 
-            onClick={() => setActiveTab('journal')}
-            className={`flex flex-col items-center justify-center w-16 h-16 rounded-2xl transition-all ${activeTab === 'journal' ? 'text-green-600 bg-green-50' : 'text-gray-400'}`}
-          >
-            <BookOpen className="h-6 w-6" />
-            <span className="text-[8px] font-black mt-1 uppercase tracking-widest">Jurnal</span>
-          </button>
+          
+          {tenant?.is_journal_enabled !== false && (
+            <button 
+              onClick={() => setActiveTab('journal')}
+              className={`flex flex-col items-center justify-center w-16 h-16 rounded-2xl transition-all ${activeTab === 'journal' ? 'text-green-600 bg-green-50' : 'text-gray-400'}`}
+            >
+              <BookOpen className="h-6 w-6" />
+              <span className="text-[8px] font-black mt-1 uppercase tracking-widest">Jurnal</span>
+            </button>
+          )}
 
           {/* Central Floating Button */}
           <div className="relative -top-8">

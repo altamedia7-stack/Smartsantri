@@ -83,7 +83,8 @@ export function AdminDashboard({ profile }: { profile: UserProfile }) {
     check_in_end_time: '09:00',
     check_out_time: '16:00',
     check_out_end_time: '18:00',
-    off_days: [] as number[]
+    off_days: [] as number[],
+    is_journal_enabled: true
   });
   
   const [currentMonth, setCurrentMonth] = useState(new Date());
@@ -158,7 +159,8 @@ export function AdminDashboard({ profile }: { profile: UserProfile }) {
           check_in_end_time: data.check_in_end_time || '09:00',
           check_out_time: data.check_out_time || '16:00',
           check_out_end_time: data.check_out_end_time || '18:00',
-          off_days: data.off_days || []
+          off_days: data.off_days || [],
+          is_journal_enabled: data.is_journal_enabled ?? true
         });
       }
     }, (error) => {
@@ -910,11 +912,12 @@ export function AdminDashboard({ profile }: { profile: UserProfile }) {
     setIsSavingOrg(true);
     try {
       await updateDoc(doc(db, 'tenants', tenant.id), {
-        name: tenantSettings.name
+        name: tenantSettings.name,
+        is_journal_enabled: tenantSettings.is_journal_enabled
       });
-      toast.success('Nama organisasi berhasil disimpan');
+      toast.success('Pengaturan organisasi berhasil disimpan');
     } catch (error) {
-      toast.error('Gagal menyimpan nama organisasi');
+      toast.error('Gagal menyimpan pengaturan organisasi');
     } finally {
       setIsSavingOrg(false);
     }
@@ -1895,6 +1898,24 @@ export function AdminDashboard({ profile }: { profile: UserProfile }) {
                   />
                   <p className="text-[10px] text-blue-600 italic">Nama ini akan muncul di kop surat laporan PDF dan Excel agar terlihat profesional.</p>
                 </div>
+
+                <div className="space-y-2 rounded-xl border bg-blue-50/30 p-4 flex items-center justify-between">
+                  <div>
+                    <Label className="text-blue-700 font-bold">Fitur Jurnal Guru</Label>
+                    <p className="text-[10px] text-blue-600 italic">Aktifkan atau nonaktifkan fitur jurnal untuk karyawan/guru.</p>
+                  </div>
+                  <div className="flex items-center">
+                    <label className="relative inline-flex items-center cursor-pointer">
+                      <input 
+                        type="checkbox" 
+                        className="sr-only peer"
+                        checked={tenantSettings.is_journal_enabled}
+                        onChange={(e) => setTenantSettings({...tenantSettings, is_journal_enabled: e.target.checked})}
+                      />
+                      <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                    </label>
+                  </div>
+                </div>
                 
                 <Button 
                   onClick={handleSaveOrgSettings} 
@@ -1902,7 +1923,7 @@ export function AdminDashboard({ profile }: { profile: UserProfile }) {
                   disabled={isSavingOrg}
                 >
                   {isSavingOrg ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                  Simpan Nama Organisasi
+                  Simpan Pengaturan Organisasi
                 </Button>
               </CardContent>
             </Card>

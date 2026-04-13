@@ -13,6 +13,7 @@ export interface Tenant {
   check_out_time?: string;
   check_out_end_time?: string;
   off_days?: number[]; // 0 for Sunday, 1 for Monday, etc.
+  is_journal_enabled?: boolean;
   createdAt: any;
 }
 
