@@ -867,15 +867,22 @@ export function UserDashboard({ profile }: { profile: UserProfile }) {
 
       {activeTab === 'profile' && (
         <div className="w-full max-w-md mx-auto space-y-6 px-4 sm:px-0 pb-24">
-          <div className="flex items-center justify-between">
-            <div>
-              <h3 className="text-2xl font-bold text-gray-900 tracking-tight">Profil Saya</h3>
-              <p className="text-xs font-medium text-gray-500 mt-1">Informasi personal dan pengaturan akun</p>
+          <motion.div 
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="flex items-center justify-between mb-8"
+          >
+            <div className="space-y-1">
+              <h3 className="text-3xl font-black text-gray-900 tracking-tight">Profil Saya</h3>
+              <div className="flex items-center gap-2">
+                <div className="h-1.5 w-1.5 rounded-full bg-purple-500 animate-pulse" />
+                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-[0.2em]">Informasi Akun & Keamanan</p>
+              </div>
             </div>
-            <div className="h-10 w-10 rounded-xl bg-purple-50 flex items-center justify-center text-purple-600">
-              <User className="h-5 w-5" />
+            <div className="h-14 w-14 rounded-2xl bg-white border border-gray-100 shadow-xl shadow-purple-100 flex items-center justify-center text-purple-600 transition-transform hover:scale-105">
+              <User className="h-7 w-7" />
             </div>
-          </div>
+          </motion.div>
           
           <div className="overflow-hidden rounded-[2rem] border border-gray-100 bg-white shadow-sm">
             <div className="relative h-32 bg-gradient-to-br from-green-600 via-green-500 to-emerald-400">
