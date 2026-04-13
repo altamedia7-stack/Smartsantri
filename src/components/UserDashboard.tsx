@@ -599,49 +599,49 @@ export function UserDashboard({ profile }: { profile: UserProfile }) {
       )}
 
       {activeTab === 'journal' && (
-        <div className="w-full max-w-md mx-auto space-y-4">
-          <div className="flex items-center justify-between text-gray-900">
-            <div className="flex items-center gap-2">
-              <BookOpen className="h-5 w-5 text-blue-600" />
-              <h3 className="font-bold">Jurnal Saya</h3>
+        <div className="w-full max-w-md mx-auto space-y-6 px-4 sm:px-0">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-xl font-bold text-gray-900 tracking-tight">Jurnal Mengajar</h3>
+              <p className="text-xs text-gray-500 mt-1">Catat aktivitas mengajar harian Anda</p>
             </div>
             <Dialog open={isJournalOpen} onOpenChange={setIsJournalOpen}>
-              <DialogTrigger render={<Button size="sm" variant="outline" className="h-9 sm:h-8 text-sm sm:text-xs" />}>
-                <Plus className="mr-1 h-4 w-4 sm:h-3 sm:w-3" /> Tambah Jurnal
+              <DialogTrigger render={<Button className="h-10 rounded-xl bg-green-600 hover:bg-green-700 shadow-sm transition-all active:scale-95 px-4" />}>
+                <Plus className="mr-2 h-4 w-4" /> Tambah
               </DialogTrigger>
-              <DialogContent className="sm:max-w-md">
+              <DialogContent className="sm:max-w-md rounded-2xl">
                 <DialogHeader>
-                  <DialogTitle>Jurnal Mengajar</DialogTitle>
+                  <DialogTitle className="text-xl font-bold">Jurnal Baru</DialogTitle>
                 </DialogHeader>
-                <div className="grid gap-4 py-4">
+                <div className="grid gap-5 py-4">
                   <div className="grid grid-cols-2 gap-4">
                     <div className="grid gap-2">
-                      <Label htmlFor="subject">Mata Pelajaran *</Label>
-                      <Input id="subject" value={newJournal.subject} onChange={e => setNewJournal({...newJournal, subject: e.target.value})} placeholder="misal. Matematika" />
+                      <Label htmlFor="subject" className="text-xs font-bold text-gray-700 uppercase tracking-wider">Mata Pelajaran *</Label>
+                      <Input id="subject" className="h-11 rounded-xl bg-gray-50 border-gray-200 focus-visible:ring-green-500" value={newJournal.subject} onChange={e => setNewJournal({...newJournal, subject: e.target.value})} placeholder="misal. Matematika" />
                     </div>
                     <div className="grid gap-2">
-                      <Label htmlFor="class">Kelas *</Label>
-                      <Input id="class" value={newJournal.class_name} onChange={e => setNewJournal({...newJournal, class_name: e.target.value})} placeholder="misal. 10A" />
+                      <Label htmlFor="class" className="text-xs font-bold text-gray-700 uppercase tracking-wider">Kelas *</Label>
+                      <Input id="class" className="h-11 rounded-xl bg-gray-50 border-gray-200 focus-visible:ring-green-500" value={newJournal.class_name} onChange={e => setNewJournal({...newJournal, class_name: e.target.value})} placeholder="misal. 10A" />
                     </div>
                   </div>
                   <div className="grid gap-2">
-                    <Label htmlFor="time">Waktu</Label>
-                    <Input id="time" type="time" value={newJournal.time} onChange={e => setNewJournal({...newJournal, time: e.target.value})} />
+                    <Label htmlFor="time" className="text-xs font-bold text-gray-700 uppercase tracking-wider">Waktu</Label>
+                    <Input id="time" type="time" className="h-11 rounded-xl bg-gray-50 border-gray-200 focus-visible:ring-green-500" value={newJournal.time} onChange={e => setNewJournal({...newJournal, time: e.target.value})} />
                   </div>
                   <div className="grid gap-2">
-                    <Label htmlFor="material">Materi yang Diajarkan *</Label>
-                    <Input id="material" value={newJournal.material} onChange={e => setNewJournal({...newJournal, material: e.target.value})} placeholder="misal. Dasar Aljabar" />
+                    <Label htmlFor="material" className="text-xs font-bold text-gray-700 uppercase tracking-wider">Materi yang Diajarkan *</Label>
+                    <Input id="material" className="h-11 rounded-xl bg-gray-50 border-gray-200 focus-visible:ring-green-500" value={newJournal.material} onChange={e => setNewJournal({...newJournal, material: e.target.value})} placeholder="misal. Dasar Aljabar" />
                   </div>
                   <div className="grid gap-2">
-                    <Label htmlFor="description">Deskripsi / Catatan</Label>
-                    <Textarea id="description" value={newJournal.description} onChange={e => setNewJournal({...newJournal, description: e.target.value})} placeholder="Catatan tambahan..." />
+                    <Label htmlFor="description" className="text-xs font-bold text-gray-700 uppercase tracking-wider">Deskripsi / Catatan</Label>
+                    <Textarea id="description" className="min-h-[100px] rounded-xl bg-gray-50 border-gray-200 focus-visible:ring-green-500 resize-none" value={newJournal.description} onChange={e => setNewJournal({...newJournal, description: e.target.value})} placeholder="Catatan tambahan..." />
                   </div>
                 </div>
-                <DialogFooter>
-                  <Button variant="outline" onClick={() => setIsJournalOpen(false)}>Batal</Button>
-                  <Button onClick={handleAddJournal} disabled={isProcessing} className="bg-blue-600 hover:bg-blue-700">
+                <DialogFooter className="gap-2 sm:gap-0">
+                  <Button variant="outline" className="h-11 rounded-xl" onClick={() => setIsJournalOpen(false)}>Batal</Button>
+                  <Button onClick={handleAddJournal} disabled={isProcessing} className="h-11 rounded-xl bg-green-600 hover:bg-green-700">
                     {isProcessing && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                    Kirim Jurnal
+                    Simpan Jurnal
                   </Button>
                 </DialogFooter>
               </DialogContent>
@@ -650,20 +650,35 @@ export function UserDashboard({ profile }: { profile: UserProfile }) {
           
           <div className="space-y-3">
             {journals.length === 0 ? (
-              <div className="rounded-lg border border-dashed p-8 text-center text-sm text-gray-500">
-                Belum ada jurnal yang dikirimkan.
+              <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-gray-200 bg-gray-50 py-12 text-center">
+                <BookOpen className="h-10 w-10 text-gray-300 mb-3" />
+                <p className="text-sm font-medium text-gray-500">Belum ada jurnal</p>
+                <p className="text-xs text-gray-400 mt-1">Jurnal yang Anda buat akan muncul di sini</p>
               </div>
             ) : (
               journals.map(journal => (
-                <div key={journal.id} className="rounded-lg border bg-white p-4 shadow-sm">
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                    <div className="font-medium text-gray-900 text-sm sm:text-base">{journal.subject} <span className="text-gray-500">({journal.class_name})</span></div>
-                    <Badge variant={journal.status === 'approved' ? 'default' : journal.status === 'rejected' ? 'destructive' : 'secondary'} className={`w-fit ${journal.status === 'approved' ? 'bg-green-100 text-green-700' : ''}`}>
+                <div key={journal.id} className="group relative overflow-hidden rounded-2xl border border-gray-100 bg-white p-5 shadow-sm transition-all hover:shadow-md">
+                  <div className="absolute left-0 top-0 bottom-0 w-1 bg-green-500" />
+                  <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
+                    <div>
+                      <div className="flex items-center gap-2 mb-1">
+                        <h4 className="font-bold text-gray-900">{journal.subject}</h4>
+                        <span className="rounded-md bg-gray-100 px-2 py-0.5 text-[10px] font-bold text-gray-600">{journal.class_name}</span>
+                      </div>
+                      <p className="text-sm text-gray-600 line-clamp-2">{journal.material}</p>
+                      <div className="mt-3 flex items-center gap-3 text-[11px] font-medium text-gray-400">
+                        <span className="flex items-center gap-1"><Calendar className="h-3 w-3" /> {journal.createdAt?.toDate().toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
+                        {journal.time && <span className="flex items-center gap-1"><Clock className="h-3 w-3" /> {journal.time}</span>}
+                      </div>
+                    </div>
+                    <Badge variant="secondary" className={`shrink-0 rounded-full px-3 py-1 text-[10px] font-bold uppercase tracking-wider ${
+                      journal.status === 'approved' ? 'bg-green-50 text-green-700 border-green-200' : 
+                      journal.status === 'rejected' ? 'bg-red-50 text-red-700 border-red-200' : 
+                      'bg-orange-50 text-orange-700 border-orange-200'
+                    }`}>
                       {journal.status === 'approved' ? 'Disetujui' : journal.status === 'rejected' ? 'Ditolak' : 'Menunggu'}
                     </Badge>
                   </div>
-                  <div className="mt-2 text-xs text-gray-400">{journal.createdAt?.toDate().toLocaleDateString('id-ID')}</div>
-                  <div className="mt-2 sm:mt-1 text-xs sm:text-sm text-gray-600">{journal.material}</div>
                 </div>
               ))
             )}
@@ -672,145 +687,173 @@ export function UserDashboard({ profile }: { profile: UserProfile }) {
       )}
 
       {activeTab === 'history' && (
-        <div className="w-full max-w-md mx-auto space-y-4">
-          <div className="flex items-center gap-2 text-gray-900">
-            <History className="h-5 w-5" />
-            <h3 className="font-bold">Riwayat Absensi</h3>
+        <div className="w-full max-w-md mx-auto space-y-6 px-4 sm:px-0">
+          <div>
+            <h3 className="text-xl font-bold text-gray-900 tracking-tight">Riwayat Absensi</h3>
+            <p className="text-xs text-gray-500 mt-1">Rekapitulasi kehadiran Anda</p>
           </div>
-          {history.length === 0 ? (
-            <div className="rounded-lg border border-dashed p-8 text-center text-sm text-gray-500">
-              Belum ada riwayat absensi.
-            </div>
-          ) : (
-            history.map(log => (
-              <Card key={log.id} className="border-none shadow-sm">
-                <CardContent className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4">
-                  <div className="flex items-center gap-3">
-                    <div className={`rounded-full p-2 ${log.status === 'valid' ? 'bg-green-50 text-green-600' : 'bg-red-50 text-red-600'}`}>
-                      {log.status === 'valid' ? <CheckCircle2 className="h-5 w-5 sm:h-4 sm:w-4" /> : <AlertTriangle className="h-5 w-5 sm:h-4 sm:w-4" />}
+          
+          <div className="space-y-3">
+            {history.length === 0 ? (
+              <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-gray-200 bg-gray-50 py-12 text-center">
+                <History className="h-10 w-10 text-gray-300 mb-3" />
+                <p className="text-sm font-medium text-gray-500">Belum ada riwayat</p>
+              </div>
+            ) : (
+              history.map(log => (
+                <div key={log.id} className="flex items-center justify-between rounded-2xl border border-gray-100 bg-white p-4 shadow-sm transition-all hover:shadow-md">
+                  <div className="flex items-center gap-4">
+                    <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-full ${log.status === 'valid' ? 'bg-green-50 text-green-600' : 'bg-red-50 text-red-600'}`}>
+                      {log.status === 'valid' ? <CheckCircle2 className="h-6 w-6" /> : <AlertTriangle className="h-6 w-6" />}
                     </div>
                     <div>
-                      <div className="text-sm sm:text-base font-bold text-gray-900">
-                        {log.check_in?.toDate().toLocaleDateString('id-ID')}
+                      <div className="text-sm font-bold text-gray-900">
+                        {log.check_in?.toDate().toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'short' })}
                       </div>
-                      <div className="text-xs sm:text-sm text-gray-500">
-                        {log.check_in?.toDate().toLocaleTimeString('id-ID')} - {log.check_out?.toDate().toLocaleTimeString('id-ID') || 'Hadir'}
+                      <div className="mt-0.5 flex items-center gap-2 text-xs font-medium text-gray-500">
+                        <span className="flex items-center gap-1"><Clock className="h-3 w-3" /> {log.check_in?.toDate().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}</span>
+                        <span>-</span>
+                        <span>{log.check_out ? log.check_out.toDate().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) : '...'}</span>
                       </div>
                     </div>
                   </div>
-                  <Badge variant="outline" className="w-fit text-[10px] sm:text-xs uppercase tracking-wider">
-                    {log.status === 'valid' ? 'Valid' : log.status === 'rejected' ? 'Ditolak' : 'Mencurigakan'}
+                  <Badge variant="secondary" className={`rounded-full px-3 py-1 text-[9px] font-bold uppercase tracking-wider ${
+                    log.status === 'valid' ? 'bg-green-50 text-green-700' : 
+                    log.status === 'rejected' ? 'bg-red-50 text-red-700' : 
+                    'bg-orange-50 text-orange-700'
+                  }`}>
+                    {log.status === 'valid' ? 'Valid' : log.status === 'rejected' ? 'Ditolak' : 'Review'}
                   </Badge>
-                </CardContent>
-              </Card>
-            ))
-          )}
+                </div>
+              ))
+            )}
+          </div>
         </div>
       )}
 
       {activeTab === 'profile' && (
-        <div className="w-full max-w-md mx-auto space-y-6">
-          <div className="flex items-center gap-2 text-gray-900">
-            <User className="h-5 w-5" />
-            <h3 className="font-bold">Profil Saya</h3>
+        <div className="w-full max-w-md mx-auto space-y-6 px-4 sm:px-0">
+          <div>
+            <h3 className="text-xl font-bold text-gray-900 tracking-tight">Profil Saya</h3>
+            <p className="text-xs text-gray-500 mt-1">Kelola informasi akun Anda</p>
           </div>
-          <Card className="border-none shadow-sm">
-            <CardContent className="p-6">
-              <div className="flex flex-col items-center text-center">
-                <div className="relative group">
-                  <div className="mb-4 flex h-24 w-24 items-center justify-center rounded-full bg-green-100 text-green-600 overflow-hidden border-2 border-white shadow-md">
-                    {profile.face_image_url ? (
-                      <img src={profile.face_image_url} alt="Profile" className="h-full w-full object-cover" />
-                    ) : (
-                      <User className="h-12 w-12" />
-                    )}
-                  </div>
-                  <button 
-                    onClick={handleStartProfilePhotoCapture}
-                    className="absolute bottom-4 right-0 rounded-full bg-white p-1.5 shadow-md border hover:bg-gray-50 transition-colors"
-                  >
-                    <Camera className="h-4 w-4 text-gray-600" />
-                  </button>
-                </div>
-                <h2 className="text-xl font-bold text-gray-900">{profile.name}</h2>
-                <p className="text-sm text-gray-500">{profile.email}</p>
-                <Badge className="mt-2 bg-green-100 text-green-700">{profile.role === 'USER' ? 'Karyawan' : 'Admin'}</Badge>
+          
+          <div className="overflow-hidden rounded-3xl border border-gray-100 bg-white shadow-sm">
+            <div className="bg-gradient-to-br from-green-500 to-green-600 px-6 py-8 text-center relative">
+              <div className="absolute top-4 right-4">
+                <Badge className="bg-white/20 text-white hover:bg-white/30 border-none backdrop-blur-sm">
+                  {profile.role === 'USER' ? 'Karyawan' : 'Admin'}
+                </Badge>
               </div>
-              
-              <div className="mt-8 space-y-4">
-                <div className="flex justify-between border-b pb-2">
-                  <span className="text-gray-500">Organisasi</span>
-                  <span className="font-medium text-gray-900">{tenant?.name}</span>
+              <div className="relative mx-auto mb-4 h-24 w-24 group">
+                <div className="h-full w-full overflow-hidden rounded-full border-4 border-white/30 bg-white shadow-xl">
+                  {profile.face_image_url ? (
+                    <img src={profile.face_image_url} alt="Profile" className="h-full w-full object-cover" />
+                  ) : (
+                    <div className="flex h-full w-full items-center justify-center bg-gray-50">
+                      <User className="h-10 w-10 text-gray-300" />
+                    </div>
+                  )}
                 </div>
-                <div className="flex justify-between border-b pb-2">
-                  <span className="text-gray-500">Status Wajah</span>
-                  <span className="font-medium text-gray-900">
-                    {profile.face_descriptor ? 'Terdaftar' : 'Belum Terdaftar'}
-                  </span>
+                <button 
+                  onClick={handleStartProfilePhotoCapture}
+                  className="absolute bottom-0 right-0 flex h-8 w-8 items-center justify-center rounded-full bg-white text-green-600 shadow-lg transition-transform hover:scale-110 active:scale-95"
+                >
+                  <Camera className="h-4 w-4" />
+                </button>
+              </div>
+              <h2 className="text-xl font-bold text-white tracking-tight">{profile.name}</h2>
+              <p className="text-sm text-green-100 mt-1">{profile.email}</p>
+            </div>
+            
+            <div className="p-6 space-y-6">
+              <div className="space-y-4">
+                <div className="flex items-center justify-between rounded-xl bg-gray-50 p-4">
+                  <div className="flex items-center gap-3">
+                    <div className="rounded-lg bg-white p-2 shadow-sm text-gray-400">
+                      <Home className="h-5 w-5" />
+                    </div>
+                    <div>
+                      <p className="text-[10px] font-bold uppercase tracking-wider text-gray-500">Organisasi</p>
+                      <p className="text-sm font-bold text-gray-900">{tenant?.name || '-'}</p>
+                    </div>
+                  </div>
                 </div>
+
+                <div className="flex items-center justify-between rounded-xl bg-gray-50 p-4">
+                  <div className="flex items-center gap-3">
+                    <div className={`rounded-lg bg-white p-2 shadow-sm ${profile.face_descriptor ? 'text-green-500' : 'text-orange-400'}`}>
+                      <Camera className="h-5 w-5" />
+                    </div>
+                    <div>
+                      <p className="text-[10px] font-bold uppercase tracking-wider text-gray-500">Status Wajah</p>
+                      <p className="text-sm font-bold text-gray-900">{profile.face_descriptor ? 'Terdaftar' : 'Belum Terdaftar'}</p>
+                    </div>
+                  </div>
+                  {!profile.face_descriptor && (
+                    <Button size="sm" variant="outline" className="h-8 text-xs rounded-lg" onClick={handleStartFaceRegistration}>
+                      Daftar
+                    </Button>
+                  )}
+                </div>
+              </div>
                 
                 <div className="pt-4 space-y-3">
                   <Dialog open={isChangingPassword} onOpenChange={setIsChangingPassword}>
-                    <DialogTrigger render={<Button variant="outline" className="w-full" />}>
-                      <Lock className="mr-2 h-4 w-4" /> Ganti Kata Sandi
+                    <DialogTrigger asChild>
+                      <Button variant="outline" className="w-full justify-start h-12 rounded-xl border-gray-200 text-gray-700 hover:bg-gray-50">
+                        <Lock className="mr-3 h-4 w-4 text-gray-400" /> Ganti Kata Sandi
+                      </Button>
                     </DialogTrigger>
-                    <DialogContent className="sm:max-w-md">
+                    <DialogContent className="sm:max-w-md rounded-2xl">
                       <DialogHeader>
-                        <DialogTitle>Ganti Kata Sandi</DialogTitle>
+                        <DialogTitle className="text-xl font-bold">Ganti Kata Sandi</DialogTitle>
                       </DialogHeader>
                       <div className="grid gap-4 py-4">
                         <div className="grid gap-2">
-                          <Label htmlFor="current-pass">Kata Sandi Saat Ini</Label>
+                          <Label htmlFor="current-pass" className="text-xs font-bold text-gray-700 uppercase tracking-wider">Kata Sandi Saat Ini</Label>
                           <Input 
                             id="current-pass" 
                             type="password" 
+                            className="h-11 rounded-xl bg-gray-50 border-gray-200 focus-visible:ring-green-500"
                             value={passwords.current} 
                             onChange={e => setPasswords({...passwords, current: e.target.value})} 
                           />
                         </div>
                         <div className="grid gap-2">
-                          <Label htmlFor="new-pass">Kata Sandi Baru</Label>
+                          <Label htmlFor="new-pass" className="text-xs font-bold text-gray-700 uppercase tracking-wider">Kata Sandi Baru</Label>
                           <Input 
                             id="new-pass" 
                             type="password" 
+                            className="h-11 rounded-xl bg-gray-50 border-gray-200 focus-visible:ring-green-500"
                             value={passwords.new} 
                             onChange={e => setPasswords({...passwords, new: e.target.value})} 
                           />
                         </div>
                         <div className="grid gap-2">
-                          <Label htmlFor="confirm-pass">Konfirmasi Kata Sandi Baru</Label>
+                          <Label htmlFor="confirm-pass" className="text-xs font-bold text-gray-700 uppercase tracking-wider">Konfirmasi Kata Sandi Baru</Label>
                           <Input 
                             id="confirm-pass" 
                             type="password" 
+                            className="h-11 rounded-xl bg-gray-50 border-gray-200 focus-visible:ring-green-500"
                             value={passwords.confirm} 
                             onChange={e => setPasswords({...passwords, confirm: e.target.value})} 
                           />
                         </div>
                       </div>
-                      <DialogFooter>
-                        <Button variant="outline" onClick={() => setIsChangingPassword(false)}>Batal</Button>
-                        <Button onClick={handleChangePassword} disabled={isUpdatingProfile} className="bg-blue-600 hover:bg-blue-700">
+                      <DialogFooter className="gap-2 sm:gap-0">
+                        <Button variant="outline" className="h-11 rounded-xl" onClick={() => setIsChangingPassword(false)}>Batal</Button>
+                        <Button onClick={handleChangePassword} disabled={isUpdatingProfile} className="h-11 rounded-xl bg-green-600 hover:bg-green-700">
                           {isUpdatingProfile && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                           Simpan Kata Sandi
                         </Button>
                       </DialogFooter>
                     </DialogContent>
                   </Dialog>
-
-                  {!profile.face_descriptor && (
-                    <Button 
-                      variant="outline" 
-                      className="w-full"
-                      onClick={handleStartFaceRegistration}
-                    >
-                      <Camera className="mr-2 h-4 w-4" /> Daftarkan Wajah Sekarang
-                    </Button>
-                  )}
                 </div>
               </div>
-            </CardContent>
-          </Card>
-        </div>
+            </div>
+          </div>
       )}
 
       {/* Bottom Navigation Bar for Mobile */}
