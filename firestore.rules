@@ -22,36 +22,27 @@ service cloud.firestore {
       return request.auth != null;
     }
 
-    function getProfile() {
-      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
-    }
-
     function isSuperAdmin() {
       return isAuthenticated() && 
-        (('email' in request.auth.token && request.auth.token.email == "altamedia7@gmail.com") || 
+        (request.auth.token.email == "altamedia7@gmail.com" || 
+         request.auth.token.email == "iruelpraker@gmail.com" ||
          (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
-          getProfile().get('role', '') == 'SUPER_ADMIN'));
+          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'SUPER_ADMIN'));
     }
 
     function isAdmin() {
       return isAuthenticated() && 
         (isSuperAdmin() || 
          (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
-          getProfile().get('role', '') == 'ADMIN'));
+          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'ADMIN'));
     }
 
     function isTenantAdmin(tenantId) {
       return isAuthenticated() && 
         (isSuperAdmin() || 
          (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
-          getProfile().get('tenant_id', '') == tenantId && 
-          getProfile().get('role', '') == 'ADMIN'));
-    }
-
-    function isUser() {
-      return isAuthenticated() && 
-        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
-        getProfile().get('role', '') == 'USER';
+          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.tenant_id == tenantId && 
+          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'ADMIN'));
     }
 
     function isOwner(userId) {
@@ -67,9 +58,10 @@ service cloud.firestore {
 
     // Users
     match /users/{userId} {
-      allow read: if isAuthenticated() && (isOwner(userId) || isAdmin() || isSuperAdmin());
-      allow create: if isAuthenticated() && (isOwner(userId) || isSuperAdmin() || isTenantAdmin(request.resource.data.tenant_id));
-      allow update: if isAuthenticated() && (isOwner(userId) || isAdmin() || isSuperAdmin());
+      allow get: if isAuthenticated() && (request.auth.uid == userId || isSuperAdmin() || isAdmin());
+      allow list: if isSuperAdmin() || isAdmin();
+      allow create: if isAuthenticated() && (request.auth.uid == userId || isSuperAdmin() || isTenantAdmin(request.resource.data.tenant_id));
+      allow update: if isAuthenticated() && (request.auth.uid == userId || isAdmin() || isSuperAdmin());
       allow delete: if isSuperAdmin() || isTenantAdmin(resource.data.tenant_id);
     }
 
@@ -107,6 +99,19 @@ service cloud.firestore {
 
     // Holidays
     match /holidays/{holidayId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && (isSuperAdmin() || 
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
+         getProfile().get('role', '') == 'ADMIN' && 
+         getProfile().get('tenant_id', '') == request.resource.data.tenant_id));
+      allow update, delete: if isAuthenticated() && (isSuperAdmin() || 
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
+         getProfile().get('role', '') == 'ADMIN' && 
+         getProfile().get('tenant_id', '') == resource.data.tenant_id));
+    }
+
+    // Announcements
+    match /announcements/{announcementId} {
       allow read: if isAuthenticated();
       allow create: if isAuthenticated() && (isSuperAdmin() || 
         (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
