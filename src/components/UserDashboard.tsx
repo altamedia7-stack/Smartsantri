@@ -428,7 +428,7 @@ export function UserDashboard({ profile }: { profile: UserProfile }) {
     <div className="space-y-6 sm:space-y-8 pb-24 sm:pb-8">
       {activeTab === 'home' && (
         <>
-          <div className="bg-green-600 px-4 pt-12 pb-16 sm:px-6 lg:px-8 rounded-b-[3.5rem] shadow-lg relative -mx-4 sm:-mx-6 lg:-mx-8 -mt-12 mb-8">
+          <div className="bg-green-600 px-4 pt-12 pb-10 sm:px-6 lg:px-8 rounded-b-[3.5rem] shadow-lg relative -mx-4 sm:-mx-6 lg:-mx-8 -mt-12 mb-8">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <div className="h-14 w-14 overflow-hidden rounded-full border-2 border-white/30 bg-white/10 shadow-inner">
@@ -462,18 +462,6 @@ export function UserDashboard({ profile }: { profile: UserProfile }) {
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
-            </div>
-
-            <div className="mt-8 flex items-center gap-3">
-              <div className="relative flex-1">
-                <Input 
-                  placeholder="Sampaikan sesuatu..." 
-                  className="h-12 w-full rounded-full border-0 bg-white/95 pl-6 pr-4 text-sm shadow-xl focus-visible:ring-2 focus-visible:ring-white/20 text-gray-700 placeholder:text-gray-400 backdrop-blur-sm"
-                />
-              </div>
-              <Button className="h-12 rounded-full bg-blue-500 px-8 font-bold text-white shadow-lg hover:bg-blue-600 transition-all active:scale-95">
-                Kirim
-              </Button>
             </div>
           </div>
 
