@@ -83,6 +83,14 @@ export function UserDashboard({ profile }: { profile: UserProfile }) {
   const [isChangingPassword, setIsChangingPassword] = useState(false);
   const [passwords, setPasswords] = useState({ current: '', new: '', confirm: '' });
   const [isUpdatingProfile, setIsUpdatingProfile] = useState(false);
+  const [isEditProfileOpen, setIsEditProfileOpen] = useState(false);
+  const [editProfileData, setEditProfileData] = useState({
+    name: '',
+    phone: '',
+    nip_nis: '',
+    address: ''
+  });
+  const [theme, setTheme] = useState<'light' | 'dark'>('light');
   const [isFaceScanning, setIsFaceScanning] = useState(false);
   const [faceStatus, setFaceStatus] = useState<'detecting' | 'detected' | 'not_detected' | 'idle'>('idle');
   const [unreadNotifications, setUnreadNotifications] = useState(2);
@@ -193,6 +201,58 @@ export function UserDashboard({ profile }: { profile: UserProfile }) {
       setActiveTab('home');
     }
   }, [tenant?.is_journal_enabled, activeTab]);
+
+  useEffect(() => {
+    const savedTheme = localStorage.getItem('theme');
+    if (savedTheme === 'dark' || (!savedTheme && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+      setTheme('dark');
+      document.documentElement.classList.add('dark');
+    } else {
+      setTheme('light');
+      document.documentElement.classList.remove('dark');
+    }
+  }, []);
+
+  const toggleTheme = () => {
+    if (theme === 'light') {
+      setTheme('dark');
+      document.documentElement.classList.add('dark');
+      localStorage.setItem('theme', 'dark');
+    } else {
+      setTheme('light');
+      document.documentElement.classList.remove('dark');
+      localStorage.setItem('theme', 'light');
+    }
+  };
+
+  const handleSaveProfile = async () => {
+    if (!profile.id) return;
+    setIsUpdatingProfile(true);
+    try {
+      await updateDoc(doc(db, 'users', profile.id), {
+        name: editProfileData.name,
+        phone: editProfileData.phone,
+        nip_nis: editProfileData.nip_nis,
+        address: editProfileData.address
+      });
+      toast.success('Profil berhasil diperbarui');
+      setIsEditProfileOpen(false);
+    } catch (error) {
+      toast.error('Gagal memperbarui profil');
+    } finally {
+      setIsUpdatingProfile(false);
+    }
+  };
+
+  const openEditProfile = () => {
+    setEditProfileData({
+      name: profile.name || '',
+      phone: profile.phone || '',
+      nip_nis: profile.nip_nis || '',
+      address: profile.address || ''
+    });
+    setIsEditProfileOpen(true);
+  };
 
   const handleLogout = async () => {
     try {
@@ -1606,7 +1666,7 @@ export function UserDashboard({ profile }: { profile: UserProfile }) {
                     <Camera className="h-4 w-4" />
                   </button>
                 </div>
-                <Button variant="outline" size="sm" className="h-9 rounded-xl font-semibold text-gray-600 border-gray-200 hover:bg-gray-50">
+                <Button onClick={openEditProfile} variant="outline" size="sm" className="h-9 rounded-xl font-semibold text-gray-600 border-gray-200 hover:bg-gray-50">
                   <Edit2 className="h-4 w-4 mr-2" />
                   Edit Profil
                 </Button>
@@ -1725,6 +1785,60 @@ export function UserDashboard({ profile }: { profile: UserProfile }) {
               <h3 className="text-sm font-bold text-gray-900">Pengaturan Akun</h3>
             </div>
             <div className="p-2">
+              <Dialog open={isEditProfileOpen} onOpenChange={setIsEditProfileOpen}>
+                <DialogContent className="sm:max-w-md rounded-[2rem] p-8">
+                  <DialogHeader>
+                    <DialogTitle className="text-2xl font-bold tracking-tight">Edit Profil</DialogTitle>
+                    <p className="text-sm text-gray-500">Perbarui informasi pribadi Anda.</p>
+                  </DialogHeader>
+                  <div className="grid gap-6 py-6">
+                    <div className="grid gap-2">
+                      <Label htmlFor="edit-name" className="text-[10px] font-bold text-gray-400 uppercase tracking-widest ml-1">Nama Lengkap</Label>
+                      <Input 
+                        id="edit-name" 
+                        className="h-12 rounded-xl bg-gray-50 border-none focus-visible:ring-green-500"
+                        value={editProfileData.name} 
+                        onChange={e => setEditProfileData({...editProfileData, name: e.target.value})} 
+                      />
+                    </div>
+                    <div className="grid gap-2">
+                      <Label htmlFor="edit-phone" className="text-[10px] font-bold text-gray-400 uppercase tracking-widest ml-1">Nomor HP</Label>
+                      <Input 
+                        id="edit-phone" 
+                        className="h-12 rounded-xl bg-gray-50 border-none focus-visible:ring-green-500"
+                        value={editProfileData.phone} 
+                        onChange={e => setEditProfileData({...editProfileData, phone: e.target.value})} 
+                      />
+                    </div>
+                    <div className="grid gap-2">
+                      <Label htmlFor="edit-nip" className="text-[10px] font-bold text-gray-400 uppercase tracking-widest ml-1">NIP / NIS</Label>
+                      <Input 
+                        id="edit-nip" 
+                        className="h-12 rounded-xl bg-gray-50 border-none focus-visible:ring-green-500"
+                        value={editProfileData.nip_nis} 
+                        onChange={e => setEditProfileData({...editProfileData, nip_nis: e.target.value})} 
+                      />
+                    </div>
+                    <div className="grid gap-2">
+                      <Label htmlFor="edit-address" className="text-[10px] font-bold text-gray-400 uppercase tracking-widest ml-1">Alamat</Label>
+                      <Input 
+                        id="edit-address" 
+                        className="h-12 rounded-xl bg-gray-50 border-none focus-visible:ring-green-500"
+                        value={editProfileData.address} 
+                        onChange={e => setEditProfileData({...editProfileData, address: e.target.value})} 
+                      />
+                    </div>
+                  </div>
+                  <DialogFooter className="gap-3 sm:gap-0">
+                    <Button variant="ghost" className="h-12 rounded-xl font-bold text-gray-500" onClick={() => setIsEditProfileOpen(false)}>Batal</Button>
+                    <Button onClick={handleSaveProfile} disabled={isUpdatingProfile} className="h-12 rounded-xl bg-green-600 hover:bg-green-700 font-bold px-8">
+                      {isUpdatingProfile && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                      Simpan
+                    </Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
+
               <Dialog open={isChangingPassword} onOpenChange={setIsChangingPassword}>
                 <DialogTrigger asChild>
                   <button className="w-full flex items-center justify-between p-3 hover:bg-gray-50 rounded-xl transition-colors">
@@ -1807,7 +1921,7 @@ export function UserDashboard({ profile }: { profile: UserProfile }) {
                 </div>
               </button>
 
-              <button className="w-full flex items-center justify-between p-3 hover:bg-gray-50 rounded-xl transition-colors">
+              <button onClick={toggleTheme} className="w-full flex items-center justify-between p-3 hover:bg-gray-50 rounded-xl transition-colors">
                 <div className="flex items-center gap-4">
                   <div className="h-10 w-10 rounded-full bg-gray-50 flex items-center justify-center text-gray-600">
                     <Moon className="h-5 w-5" />
@@ -1815,7 +1929,7 @@ export function UserDashboard({ profile }: { profile: UserProfile }) {
                   <span className="text-sm font-semibold text-gray-900">Tema</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className="text-xs text-gray-500 font-medium">Light</span>
+                  <span className="text-xs text-gray-500 font-medium capitalize">{theme}</span>
                   <ChevronRight className="h-5 w-5 text-gray-400" />
                 </div>
               </button>

@@ -61,7 +61,11 @@ service cloud.firestore {
       allow get: if isAuthenticated() && (request.auth.uid == userId || isSuperAdmin() || isAdmin());
       allow list: if isSuperAdmin() || isAdmin();
       allow create: if isAuthenticated() && (request.auth.uid == userId || isSuperAdmin() || isTenantAdmin(request.resource.data.tenant_id));
-      allow update: if isAuthenticated() && (request.auth.uid == userId || isAdmin() || isSuperAdmin());
+      allow update: if isAuthenticated() && (
+        (request.auth.uid == userId && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name', 'phone', 'nip_nis', 'address', 'face_descriptor', 'face_image_url'])) || 
+        isAdmin() || 
+        isSuperAdmin()
+      );
       allow delete: if isSuperAdmin() || isTenantAdmin(resource.data.tenant_id);
     }
 
