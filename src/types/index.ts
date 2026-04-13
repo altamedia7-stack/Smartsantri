@@ -51,7 +51,14 @@ export interface Journal {
   material: string;
   description: string;
   photo_url?: string;
+  file_url?: string;
   status: 'pending' | 'approved' | 'rejected';
+  is_draft?: boolean;
+  student_attendance?: {
+    student_id: string;
+    name: string;
+    status: 'present' | 'absent' | 'late' | 'sick';
+  }[];
   createdAt: any;
 }
 
