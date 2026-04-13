@@ -429,7 +429,7 @@ export function UserDashboard({ profile }: { profile: UserProfile }) {
     <div className="space-y-6 sm:space-y-8 pb-24 sm:pb-8">
       {activeTab === 'home' && (
         <>
-          <div className="bg-gradient-to-br from-green-600 via-green-600 to-green-700 px-8 py-8 sm:px-10 lg:px-12 shadow-md relative -mx-4 sm:-mx-6 lg:-mx-8 mt-0 mb-8 border-b border-green-500/20">
+          <div className="bg-gradient-to-br from-green-600 via-green-600 to-green-700 px-4 py-4 sm:px-10 sm:py-8 lg:px-12 shadow-md relative -mx-4 sm:-mx-6 lg:-mx-8 mt-0 mb-8 border-b border-green-500/20">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-4">
                 <div className="h-14 w-14 overflow-hidden rounded-full border-2 border-white/40 bg-white/10 shadow-lg">
