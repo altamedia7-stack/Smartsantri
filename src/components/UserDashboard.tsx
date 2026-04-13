@@ -12,7 +12,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, Dialog
 import { auth } from '../firebase';
 import { signOut } from 'firebase/auth';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { Loader2, MapPin, Camera, CheckCircle2, XCircle, AlertTriangle, Clock, History, BookOpen, Plus, Home, User, Calendar, Lock, MoreVertical, Bell, LogOut, Send, Settings, Info } from 'lucide-react';
+import { Loader2, MapPin, Camera, CheckCircle2, XCircle, AlertTriangle, Clock, History, BookOpen, Plus, Home, User, Calendar, Lock, MoreVertical, Bell, LogOut, Send, Settings, Info, ChevronRight, LogIn, LogOut as LogOutIcon, Scan } from 'lucide-react';
+import { motion } from 'motion/react';
 import { toast } from 'sonner';
 import { validateLocation, getFaceDescriptor, loadFaceModels, compareFaces, calculateDistance } from '../lib/attendance';
 import { handleFirestoreError, OperationType } from '../lib/errorUtils';
@@ -599,47 +600,80 @@ export function UserDashboard({ profile }: { profile: UserProfile }) {
       )}
 
       {activeTab === 'journal' && (
-        <div className="w-full max-w-md mx-auto space-y-6 px-4 sm:px-0">
+        <div className="w-full max-w-md mx-auto space-y-6 px-4 sm:px-0 pb-24">
           <div className="flex items-center justify-between">
             <div>
-              <h3 className="text-xl font-bold text-gray-900 tracking-tight">Jurnal Mengajar</h3>
-              <p className="text-xs text-gray-500 mt-1">Catat aktivitas mengajar harian Anda</p>
+              <h3 className="text-2xl font-bold text-gray-900 tracking-tight">Jurnal Mengajar</h3>
+              <p className="text-xs font-medium text-gray-500 mt-1">Dokumentasi kegiatan belajar mengajar</p>
             </div>
             <Dialog open={isJournalOpen} onOpenChange={setIsJournalOpen}>
-              <DialogTrigger render={<Button className="h-10 rounded-xl bg-green-600 hover:bg-green-700 shadow-sm transition-all active:scale-95 px-4" />}>
-                <Plus className="mr-2 h-4 w-4" /> Tambah
+              <DialogTrigger asChild>
+                <Button className="h-10 w-10 rounded-xl bg-green-600 hover:bg-green-700 shadow-lg shadow-green-200 flex items-center justify-center text-white transition-all active:scale-95">
+                  <Plus className="h-5 w-5" />
+                </Button>
               </DialogTrigger>
-              <DialogContent className="sm:max-w-md rounded-2xl">
+              <DialogContent className="sm:max-w-md rounded-[2rem] p-8">
                 <DialogHeader>
-                  <DialogTitle className="text-xl font-bold">Jurnal Baru</DialogTitle>
+                  <DialogTitle className="text-2xl font-bold tracking-tight">Jurnal Baru</DialogTitle>
+                  <p className="text-sm text-gray-500">Catat aktivitas mengajar Anda hari ini.</p>
                 </DialogHeader>
-                <div className="grid gap-5 py-4">
+                <div className="grid gap-6 py-6">
                   <div className="grid grid-cols-2 gap-4">
                     <div className="grid gap-2">
-                      <Label htmlFor="subject" className="text-xs font-bold text-gray-700 uppercase tracking-wider">Mata Pelajaran *</Label>
-                      <Input id="subject" className="h-11 rounded-xl bg-gray-50 border-gray-200 focus-visible:ring-green-500" value={newJournal.subject} onChange={e => setNewJournal({...newJournal, subject: e.target.value})} placeholder="misal. Matematika" />
+                      <Label htmlFor="subject" className="text-[10px] font-bold text-gray-400 uppercase tracking-widest ml-1">Mata Pelajaran</Label>
+                      <Input 
+                        id="subject" 
+                        className="h-12 rounded-xl bg-gray-50 border-none focus-visible:ring-green-500" 
+                        value={newJournal.subject} 
+                        onChange={e => setNewJournal({...newJournal, subject: e.target.value})} 
+                        placeholder="Matematika" 
+                      />
                     </div>
                     <div className="grid gap-2">
-                      <Label htmlFor="class" className="text-xs font-bold text-gray-700 uppercase tracking-wider">Kelas *</Label>
-                      <Input id="class" className="h-11 rounded-xl bg-gray-50 border-gray-200 focus-visible:ring-green-500" value={newJournal.class_name} onChange={e => setNewJournal({...newJournal, class_name: e.target.value})} placeholder="misal. 10A" />
+                      <Label htmlFor="class" className="text-[10px] font-bold text-gray-400 uppercase tracking-widest ml-1">Kelas</Label>
+                      <Input 
+                        id="class" 
+                        className="h-12 rounded-xl bg-gray-50 border-none focus-visible:ring-green-500" 
+                        value={newJournal.class_name} 
+                        onChange={e => setNewJournal({...newJournal, class_name: e.target.value})} 
+                        placeholder="10A" 
+                      />
                     </div>
                   </div>
                   <div className="grid gap-2">
-                    <Label htmlFor="time" className="text-xs font-bold text-gray-700 uppercase tracking-wider">Waktu</Label>
-                    <Input id="time" type="time" className="h-11 rounded-xl bg-gray-50 border-gray-200 focus-visible:ring-green-500" value={newJournal.time} onChange={e => setNewJournal({...newJournal, time: e.target.value})} />
+                    <Label htmlFor="time" className="text-[10px] font-bold text-gray-400 uppercase tracking-widest ml-1">Waktu</Label>
+                    <Input 
+                      id="time" 
+                      type="time" 
+                      className="h-12 rounded-xl bg-gray-50 border-none focus-visible:ring-green-500" 
+                      value={newJournal.time} 
+                      onChange={e => setNewJournal({...newJournal, time: e.target.value})} 
+                    />
                   </div>
                   <div className="grid gap-2">
-                    <Label htmlFor="material" className="text-xs font-bold text-gray-700 uppercase tracking-wider">Materi yang Diajarkan *</Label>
-                    <Input id="material" className="h-11 rounded-xl bg-gray-50 border-gray-200 focus-visible:ring-green-500" value={newJournal.material} onChange={e => setNewJournal({...newJournal, material: e.target.value})} placeholder="misal. Dasar Aljabar" />
+                    <Label htmlFor="material" className="text-[10px] font-bold text-gray-400 uppercase tracking-widest ml-1">Materi</Label>
+                    <Input 
+                      id="material" 
+                      className="h-12 rounded-xl bg-gray-50 border-none focus-visible:ring-green-500" 
+                      value={newJournal.material} 
+                      onChange={e => setNewJournal({...newJournal, material: e.target.value})} 
+                      placeholder="Dasar Aljabar" 
+                    />
                   </div>
                   <div className="grid gap-2">
-                    <Label htmlFor="description" className="text-xs font-bold text-gray-700 uppercase tracking-wider">Deskripsi / Catatan</Label>
-                    <Textarea id="description" className="min-h-[100px] rounded-xl bg-gray-50 border-gray-200 focus-visible:ring-green-500 resize-none" value={newJournal.description} onChange={e => setNewJournal({...newJournal, description: e.target.value})} placeholder="Catatan tambahan..." />
+                    <Label htmlFor="description" className="text-[10px] font-bold text-gray-400 uppercase tracking-widest ml-1">Catatan</Label>
+                    <Textarea 
+                      id="description" 
+                      className="min-h-[100px] rounded-xl bg-gray-50 border-none focus-visible:ring-green-500 resize-none" 
+                      value={newJournal.description} 
+                      onChange={e => setNewJournal({...newJournal, description: e.target.value})} 
+                      placeholder="Catatan tambahan..." 
+                    />
                   </div>
                 </div>
-                <DialogFooter className="gap-2 sm:gap-0">
-                  <Button variant="outline" className="h-11 rounded-xl" onClick={() => setIsJournalOpen(false)}>Batal</Button>
-                  <Button onClick={handleAddJournal} disabled={isProcessing} className="h-11 rounded-xl bg-green-600 hover:bg-green-700">
+                <DialogFooter className="gap-3 sm:gap-0">
+                  <Button variant="ghost" className="h-12 rounded-xl font-bold text-gray-500" onClick={() => setIsJournalOpen(false)}>Batal</Button>
+                  <Button onClick={handleAddJournal} disabled={isProcessing} className="h-12 rounded-xl bg-green-600 hover:bg-green-700 font-bold px-8">
                     {isProcessing && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                     Simpan Jurnal
                   </Button>
@@ -648,38 +682,67 @@ export function UserDashboard({ profile }: { profile: UserProfile }) {
             </Dialog>
           </div>
           
-          <div className="space-y-3">
+          <div className="space-y-4">
             {journals.length === 0 ? (
-              <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-gray-200 bg-gray-50 py-12 text-center">
-                <BookOpen className="h-10 w-10 text-gray-300 mb-3" />
-                <p className="text-sm font-medium text-gray-500">Belum ada jurnal</p>
-                <p className="text-xs text-gray-400 mt-1">Jurnal yang Anda buat akan muncul di sini</p>
+              <div className="flex flex-col items-center justify-center rounded-3xl border border-dashed border-gray-200 bg-gray-50/50 py-16 text-center">
+                <div className="h-16 w-16 rounded-full bg-white shadow-sm flex items-center justify-center mb-4">
+                  <BookOpen className="h-8 w-8 text-gray-300" />
+                </div>
+                <p className="text-sm font-bold text-gray-900">Belum Ada Jurnal</p>
+                <p className="text-xs text-gray-400 mt-1 max-w-[200px] mx-auto">Jurnal yang Anda buat akan muncul di sini secara otomatis</p>
               </div>
             ) : (
-              journals.map(journal => (
-                <div key={journal.id} className="group relative overflow-hidden rounded-2xl border border-gray-100 bg-white p-5 shadow-sm transition-all hover:shadow-md">
-                  <div className="absolute left-0 top-0 bottom-0 w-1 bg-green-500" />
-                  <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
-                    <div>
-                      <div className="flex items-center gap-2 mb-1">
-                        <h4 className="font-bold text-gray-900">{journal.subject}</h4>
-                        <span className="rounded-md bg-gray-100 px-2 py-0.5 text-[10px] font-bold text-gray-600">{journal.class_name}</span>
+              journals.map((journal, index) => (
+                <motion.div 
+                  key={journal.id}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: index * 0.05 }}
+                  className="group relative overflow-hidden rounded-3xl border border-gray-100 bg-white p-5 shadow-sm transition-all hover:shadow-md hover:border-green-100"
+                >
+                  <div className="flex flex-col gap-4">
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2">
+                          <span className="inline-flex items-center rounded-md bg-green-50 px-2 py-0.5 text-[10px] font-bold text-green-700 uppercase tracking-wider">
+                            {journal.class_name}
+                          </span>
+                          <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
+                            {journal.time}
+                          </span>
+                        </div>
+                        <h4 className="text-lg font-bold text-gray-900 leading-tight group-hover:text-green-600 transition-colors">
+                          {journal.subject}
+                        </h4>
                       </div>
-                      <p className="text-sm text-gray-600 line-clamp-2">{journal.material}</p>
-                      <div className="mt-3 flex items-center gap-3 text-[11px] font-medium text-gray-400">
-                        <span className="flex items-center gap-1"><Calendar className="h-3 w-3" /> {journal.createdAt?.toDate().toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
-                        {journal.time && <span className="flex items-center gap-1"><Clock className="h-3 w-3" /> {journal.time}</span>}
+                      <Badge variant="secondary" className={`shrink-0 rounded-full px-3 py-1 text-[9px] font-bold uppercase tracking-widest border ${
+                        journal.status === 'approved' ? 'bg-green-50 text-green-700 border-green-100' : 
+                        journal.status === 'rejected' ? 'bg-red-50 text-red-700 border-red-100' : 
+                        'bg-orange-50 text-orange-700 border-orange-100'
+                      }`}>
+                        {journal.status === 'approved' ? 'Disetujui' : journal.status === 'rejected' ? 'Ditolak' : 'Menunggu'}
+                      </Badge>
+                    </div>
+
+                    <div className="relative">
+                      <p className="text-sm text-gray-600 leading-relaxed line-clamp-3 italic font-serif">
+                        "{journal.material}"
+                      </p>
+                    </div>
+
+                    <div className="pt-4 mt-auto border-t border-gray-50 flex items-center justify-between text-[10px] font-bold text-gray-400 uppercase tracking-widest">
+                      <div className="flex items-center gap-4">
+                        <span className="flex items-center gap-1.5">
+                          <Calendar className="h-3 w-3" /> 
+                          {journal.createdAt?.toDate().toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}
+                        </span>
+                      </div>
+                      <div className="h-6 w-6 rounded-full bg-gray-50 flex items-center justify-center group-hover:bg-green-50 group-hover:text-green-600 transition-colors">
+                        <ChevronRight className="h-3 w-3" />
                       </div>
                     </div>
-                    <Badge variant="secondary" className={`shrink-0 rounded-full px-3 py-1 text-[10px] font-bold uppercase tracking-wider ${
-                      journal.status === 'approved' ? 'bg-green-50 text-green-700 border-green-200' : 
-                      journal.status === 'rejected' ? 'bg-red-50 text-red-700 border-red-200' : 
-                      'bg-orange-50 text-orange-700 border-orange-200'
-                    }`}>
-                      {journal.status === 'approved' ? 'Disetujui' : journal.status === 'rejected' ? 'Ditolak' : 'Menunggu'}
-                    </Badge>
                   </div>
-                </div>
+                </motion.div>
               ))
             )}
           </div>
@@ -687,44 +750,88 @@ export function UserDashboard({ profile }: { profile: UserProfile }) {
       )}
 
       {activeTab === 'history' && (
-        <div className="w-full max-w-md mx-auto space-y-6 px-4 sm:px-0">
-          <div>
-            <h3 className="text-xl font-bold text-gray-900 tracking-tight">Riwayat Absensi</h3>
-            <p className="text-xs text-gray-500 mt-1">Rekapitulasi kehadiran Anda</p>
+        <div className="w-full max-w-md mx-auto space-y-6 px-4 sm:px-0 pb-24">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-2xl font-bold text-gray-900 tracking-tight">Riwayat Absensi</h3>
+              <p className="text-xs font-medium text-gray-500 mt-1">Rekapitulasi kehadiran Anda bulan ini</p>
+            </div>
+            <div className="h-10 w-10 rounded-xl bg-blue-50 flex items-center justify-center text-blue-600">
+              <History className="h-5 w-5" />
+            </div>
+          </div>
+
+          {/* Stats Summary */}
+          <div className="grid grid-cols-2 gap-3">
+            <div className="rounded-3xl bg-white border border-gray-100 p-4 shadow-sm">
+              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Total Hadir</p>
+              <div className="flex items-end gap-2">
+                <span className="text-2xl font-bold text-gray-900">{history.filter(h => h.status === 'valid').length}</span>
+                <span className="text-[10px] font-bold text-green-500 mb-1">HARI</span>
+              </div>
+            </div>
+            <div className="rounded-3xl bg-white border border-gray-100 p-4 shadow-sm">
+              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Review</p>
+              <div className="flex items-end gap-2">
+                <span className="text-2xl font-bold text-gray-900">{history.filter(h => h.status === 'pending').length}</span>
+                <span className="text-[10px] font-bold text-orange-500 mb-1">LOG</span>
+              </div>
+            </div>
           </div>
           
           <div className="space-y-3">
             {history.length === 0 ? (
-              <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-gray-200 bg-gray-50 py-12 text-center">
-                <History className="h-10 w-10 text-gray-300 mb-3" />
-                <p className="text-sm font-medium text-gray-500">Belum ada riwayat</p>
+              <div className="flex flex-col items-center justify-center rounded-3xl border border-dashed border-gray-200 bg-gray-50/50 py-16 text-center">
+                <div className="h-16 w-16 rounded-full bg-white shadow-sm flex items-center justify-center mb-4">
+                  <History className="h-8 w-8 text-gray-300" />
+                </div>
+                <p className="text-sm font-bold text-gray-900">Belum Ada Riwayat</p>
               </div>
             ) : (
-              history.map(log => (
-                <div key={log.id} className="flex items-center justify-between rounded-2xl border border-gray-100 bg-white p-4 shadow-sm transition-all hover:shadow-md">
+              history.map((log, index) => (
+                <motion.div 
+                  key={log.id}
+                  initial={{ opacity: 0, x: -10 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: index * 0.03 }}
+                  className="flex items-center justify-between rounded-3xl border border-gray-100 bg-white p-4 shadow-sm transition-all hover:shadow-md"
+                >
                   <div className="flex items-center gap-4">
-                    <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-full ${log.status === 'valid' ? 'bg-green-50 text-green-600' : 'bg-red-50 text-red-600'}`}>
-                      {log.status === 'valid' ? <CheckCircle2 className="h-6 w-6" /> : <AlertTriangle className="h-6 w-6" />}
+                    <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl ${
+                      log.status === 'valid' ? 'bg-green-50 text-green-600' : 
+                      log.status === 'rejected' ? 'bg-red-50 text-red-600' : 
+                      'bg-orange-50 text-orange-600'
+                    }`}>
+                      {log.status === 'valid' ? <CheckCircle2 className="h-6 w-6" /> : 
+                       log.status === 'rejected' ? <XCircle className="h-6 w-6" /> : 
+                       <AlertTriangle className="h-6 w-6" />}
                     </div>
                     <div>
                       <div className="text-sm font-bold text-gray-900">
                         {log.check_in?.toDate().toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'short' })}
                       </div>
-                      <div className="mt-0.5 flex items-center gap-2 text-xs font-medium text-gray-500">
-                        <span className="flex items-center gap-1"><Clock className="h-3 w-3" /> {log.check_in?.toDate().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}</span>
-                        <span>-</span>
-                        <span>{log.check_out ? log.check_out.toDate().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) : '...'}</span>
+                      <div className="mt-1 flex items-center gap-3">
+                        <div className="flex items-center gap-1 text-[10px] font-bold text-gray-500 bg-gray-50 px-2 py-0.5 rounded-md">
+                          <LogIn className="h-2.5 w-2.5" />
+                          {log.check_in?.toDate().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}
+                        </div>
+                        <div className="flex items-center gap-1 text-[10px] font-bold text-gray-500 bg-gray-50 px-2 py-0.5 rounded-md">
+                          <LogOutIcon className="h-2.5 w-2.5" />
+                          {log.check_out ? log.check_out.toDate().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) : '--:--'}
+                        </div>
                       </div>
                     </div>
                   </div>
-                  <Badge variant="secondary" className={`rounded-full px-3 py-1 text-[9px] font-bold uppercase tracking-wider ${
-                    log.status === 'valid' ? 'bg-green-50 text-green-700' : 
-                    log.status === 'rejected' ? 'bg-red-50 text-red-700' : 
-                    'bg-orange-50 text-orange-700'
-                  }`}>
-                    {log.status === 'valid' ? 'Valid' : log.status === 'rejected' ? 'Ditolak' : 'Review'}
-                  </Badge>
-                </div>
+                  <div className="text-right">
+                    <Badge variant="secondary" className={`rounded-full px-2.5 py-0.5 text-[8px] font-bold uppercase tracking-widest border ${
+                      log.status === 'valid' ? 'bg-green-50 text-green-700 border-green-100' : 
+                      log.status === 'rejected' ? 'bg-red-50 text-red-700 border-red-100' : 
+                      'bg-orange-50 text-orange-700 border-orange-100'
+                    }`}>
+                      {log.status === 'valid' ? 'Valid' : log.status === 'rejected' ? 'Ditolak' : 'Review'}
+                    </Badge>
+                  </div>
+                </motion.div>
               ))
             )}
           </div>
@@ -732,120 +839,136 @@ export function UserDashboard({ profile }: { profile: UserProfile }) {
       )}
 
       {activeTab === 'profile' && (
-        <div className="w-full max-w-md mx-auto space-y-6 px-4 sm:px-0">
-          <div>
-            <h3 className="text-xl font-bold text-gray-900 tracking-tight">Profil Saya</h3>
-            <p className="text-xs text-gray-500 mt-1">Kelola informasi akun Anda</p>
+        <div className="w-full max-w-md mx-auto space-y-6 px-4 sm:px-0 pb-24">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-2xl font-bold text-gray-900 tracking-tight">Profil Saya</h3>
+              <p className="text-xs font-medium text-gray-500 mt-1">Informasi personal dan pengaturan akun</p>
+            </div>
+            <div className="h-10 w-10 rounded-xl bg-purple-50 flex items-center justify-center text-purple-600">
+              <User className="h-5 w-5" />
+            </div>
           </div>
           
-          <div className="overflow-hidden rounded-3xl border border-gray-100 bg-white shadow-sm">
-            <div className="bg-gradient-to-br from-green-500 to-green-600 px-6 py-8 text-center relative">
+          <div className="overflow-hidden rounded-[2rem] border border-gray-100 bg-white shadow-sm">
+            <div className="relative h-32 bg-gradient-to-br from-green-600 via-green-500 to-emerald-400">
               <div className="absolute top-4 right-4">
-                <Badge className="bg-white/20 text-white hover:bg-white/30 border-none backdrop-blur-sm">
-                  {profile.role === 'USER' ? 'Karyawan' : 'Admin'}
+                <Badge className="bg-white/20 text-white hover:bg-white/30 border-none backdrop-blur-md px-3 py-1 rounded-full text-[10px] font-bold tracking-widest uppercase">
+                  {profile.role === 'USER' ? 'Karyawan' : 'Administrator'}
                 </Badge>
               </div>
-              <div className="relative mx-auto mb-4 h-24 w-24 group">
-                <div className="h-full w-full overflow-hidden rounded-full border-4 border-white/30 bg-white shadow-xl">
-                  {profile.face_image_url ? (
-                    <img src={profile.face_image_url} alt="Profile" className="h-full w-full object-cover" />
-                  ) : (
-                    <div className="flex h-full w-full items-center justify-center bg-gray-50">
-                      <User className="h-10 w-10 text-gray-300" />
-                    </div>
-                  )}
-                </div>
-                <button 
-                  onClick={handleStartProfilePhotoCapture}
-                  className="absolute bottom-0 right-0 flex h-8 w-8 items-center justify-center rounded-full bg-white text-green-600 shadow-lg transition-transform hover:scale-110 active:scale-95"
-                >
-                  <Camera className="h-4 w-4" />
-                </button>
-              </div>
-              <h2 className="text-xl font-bold text-white tracking-tight">{profile.name}</h2>
-              <p className="text-sm text-green-100 mt-1">{profile.email}</p>
             </div>
             
-            <div className="p-6 space-y-6">
-              <div className="space-y-4">
-                <div className="flex items-center justify-between rounded-xl bg-gray-50 p-4">
-                  <div className="flex items-center gap-3">
-                    <div className="rounded-lg bg-white p-2 shadow-sm text-gray-400">
+            <div className="relative px-6 pb-8">
+              <div className="flex flex-col items-center -mt-16 mb-6">
+                <div className="relative group">
+                  <div className="h-32 w-32 overflow-hidden rounded-full border-[6px] border-white bg-white shadow-2xl transition-transform group-hover:scale-105">
+                    {profile.face_image_url ? (
+                      <img src={profile.face_image_url} alt="Profile" className="h-full w-full object-cover" />
+                    ) : (
+                      <div className="flex h-full w-full items-center justify-center bg-gray-50">
+                        <User className="h-12 w-12 text-gray-300" />
+                      </div>
+                    )}
+                  </div>
+                  <button 
+                    onClick={handleStartProfilePhotoCapture}
+                    className="absolute bottom-1 right-1 flex h-10 w-10 items-center justify-center rounded-full bg-green-600 text-white shadow-xl transition-all hover:bg-green-700 hover:scale-110 active:scale-95 border-4 border-white"
+                  >
+                    <Camera className="h-4 w-4" />
+                  </button>
+                </div>
+                <div className="mt-4 text-center">
+                  <h2 className="text-2xl font-bold text-gray-900 tracking-tight">{profile.name}</h2>
+                  <p className="text-sm font-medium text-gray-500 mt-0.5">{profile.email}</p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 gap-4">
+                <div className="group flex items-center justify-between rounded-2xl bg-gray-50/50 p-4 border border-transparent hover:border-green-100 hover:bg-white transition-all">
+                  <div className="flex items-center gap-4">
+                    <div className="h-10 w-10 rounded-xl bg-white shadow-sm flex items-center justify-center text-gray-400 group-hover:text-green-600 transition-colors">
                       <Home className="h-5 w-5" />
                     </div>
                     <div>
-                      <p className="text-[10px] font-bold uppercase tracking-wider text-gray-500">Organisasi</p>
+                      <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Organisasi</p>
                       <p className="text-sm font-bold text-gray-900">{tenant?.name || '-'}</p>
                     </div>
                   </div>
                 </div>
 
-                <div className="flex items-center justify-between rounded-xl bg-gray-50 p-4">
-                  <div className="flex items-center gap-3">
-                    <div className={`rounded-lg bg-white p-2 shadow-sm ${profile.face_descriptor ? 'text-green-500' : 'text-orange-400'}`}>
-                      <Camera className="h-5 w-5" />
+                <div className="group flex items-center justify-between rounded-2xl bg-gray-50/50 p-4 border border-transparent hover:border-green-100 hover:bg-white transition-all">
+                  <div className="flex items-center gap-4">
+                    <div className={`h-10 w-10 rounded-xl bg-white shadow-sm flex items-center justify-center transition-colors ${profile.face_descriptor ? 'text-green-500' : 'text-orange-400'}`}>
+                      <Scan className="h-5 w-5" />
                     </div>
                     <div>
-                      <p className="text-[10px] font-bold uppercase tracking-wider text-gray-500">Status Wajah</p>
+                      <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Status Wajah</p>
                       <p className="text-sm font-bold text-gray-900">{profile.face_descriptor ? 'Terdaftar' : 'Belum Terdaftar'}</p>
                     </div>
                   </div>
                   {!profile.face_descriptor && (
-                    <Button size="sm" variant="outline" className="h-8 text-xs rounded-lg" onClick={handleStartFaceRegistration}>
-                      Daftar
+                    <Button size="sm" className="h-8 px-4 rounded-full bg-orange-500 hover:bg-orange-600 text-[10px] font-bold uppercase tracking-widest" onClick={handleStartFaceRegistration}>
+                      Daftar Sekarang
                     </Button>
                   )}
                 </div>
-              </div>
-                
-                <div className="pt-4 space-y-3">
+
+                <div className="pt-4">
                   <Dialog open={isChangingPassword} onOpenChange={setIsChangingPassword}>
                     <DialogTrigger asChild>
-                      <Button variant="outline" className="w-full justify-start h-12 rounded-xl border-gray-200 text-gray-700 hover:bg-gray-50">
-                        <Lock className="mr-3 h-4 w-4 text-gray-400" /> Ganti Kata Sandi
+                      <Button variant="outline" className="w-full justify-between h-14 rounded-2xl border-gray-100 bg-white text-gray-700 hover:bg-gray-50 hover:border-green-200 group transition-all">
+                        <div className="flex items-center">
+                          <div className="h-8 w-8 rounded-lg bg-gray-50 flex items-center justify-center mr-3 group-hover:bg-green-50 group-hover:text-green-600 transition-colors">
+                            <Lock className="h-4 w-4" />
+                          </div>
+                          <span className="text-sm font-bold">Ganti Kata Sandi</span>
+                        </div>
+                        <ChevronRight className="h-4 w-4 text-gray-300" />
                       </Button>
                     </DialogTrigger>
-                    <DialogContent className="sm:max-w-md rounded-2xl">
+                    <DialogContent className="sm:max-w-md rounded-[2rem] p-8">
                       <DialogHeader>
-                        <DialogTitle className="text-xl font-bold">Ganti Kata Sandi</DialogTitle>
+                        <DialogTitle className="text-2xl font-bold tracking-tight">Ganti Kata Sandi</DialogTitle>
+                        <p className="text-sm text-gray-500">Pastikan kata sandi baru Anda kuat dan aman.</p>
                       </DialogHeader>
-                      <div className="grid gap-4 py-4">
+                      <div className="grid gap-6 py-6">
                         <div className="grid gap-2">
-                          <Label htmlFor="current-pass" className="text-xs font-bold text-gray-700 uppercase tracking-wider">Kata Sandi Saat Ini</Label>
+                          <Label htmlFor="current-pass" className="text-[10px] font-bold text-gray-400 uppercase tracking-widest ml-1">Kata Sandi Saat Ini</Label>
                           <Input 
                             id="current-pass" 
                             type="password" 
-                            className="h-11 rounded-xl bg-gray-50 border-gray-200 focus-visible:ring-green-500"
+                            className="h-12 rounded-xl bg-gray-50 border-none focus-visible:ring-green-500"
                             value={passwords.current} 
                             onChange={e => setPasswords({...passwords, current: e.target.value})} 
                           />
                         </div>
                         <div className="grid gap-2">
-                          <Label htmlFor="new-pass" className="text-xs font-bold text-gray-700 uppercase tracking-wider">Kata Sandi Baru</Label>
+                          <Label htmlFor="new-pass" className="text-[10px] font-bold text-gray-400 uppercase tracking-widest ml-1">Kata Sandi Baru</Label>
                           <Input 
                             id="new-pass" 
                             type="password" 
-                            className="h-11 rounded-xl bg-gray-50 border-gray-200 focus-visible:ring-green-500"
+                            className="h-12 rounded-xl bg-gray-50 border-none focus-visible:ring-green-500"
                             value={passwords.new} 
                             onChange={e => setPasswords({...passwords, new: e.target.value})} 
                           />
                         </div>
                         <div className="grid gap-2">
-                          <Label htmlFor="confirm-pass" className="text-xs font-bold text-gray-700 uppercase tracking-wider">Konfirmasi Kata Sandi Baru</Label>
+                          <Label htmlFor="confirm-pass" className="text-[10px] font-bold text-gray-400 uppercase tracking-widest ml-1">Konfirmasi Kata Sandi</Label>
                           <Input 
                             id="confirm-pass" 
                             type="password" 
-                            className="h-11 rounded-xl bg-gray-50 border-gray-200 focus-visible:ring-green-500"
+                            className="h-12 rounded-xl bg-gray-50 border-none focus-visible:ring-green-500"
                             value={passwords.confirm} 
                             onChange={e => setPasswords({...passwords, confirm: e.target.value})} 
                           />
                         </div>
                       </div>
-                      <DialogFooter className="gap-2 sm:gap-0">
-                        <Button variant="outline" className="h-11 rounded-xl" onClick={() => setIsChangingPassword(false)}>Batal</Button>
-                        <Button onClick={handleChangePassword} disabled={isUpdatingProfile} className="h-11 rounded-xl bg-green-600 hover:bg-green-700">
+                      <DialogFooter className="gap-3 sm:gap-0">
+                        <Button variant="ghost" className="h-12 rounded-xl font-bold text-gray-500" onClick={() => setIsChangingPassword(false)}>Batal</Button>
+                        <Button onClick={handleChangePassword} disabled={isUpdatingProfile} className="h-12 rounded-xl bg-green-600 hover:bg-green-700 font-bold px-8">
                           {isUpdatingProfile && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                          Simpan Kata Sandi
+                          Simpan Perubahan
                         </Button>
                       </DialogFooter>
                     </DialogContent>
@@ -854,6 +977,7 @@ export function UserDashboard({ profile }: { profile: UserProfile }) {
               </div>
             </div>
           </div>
+        </div>
       )}
 
       {/* Bottom Navigation Bar for Mobile */}
