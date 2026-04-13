@@ -24,6 +24,8 @@ export function UserDashboard({ profile }: { profile: UserProfile }) {
   const [journals, setJournals] = useState<Journal[]>([]);
   const [holidays, setHolidays] = useState<Holiday[]>([]);
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
+  const [allTeachers, setAllTeachers] = useState<UserProfile[]>([]);
+  const [todayAttendance, setTodayAttendance] = useState<AttendanceRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [isProcessing, setIsProcessing] = useState(false);
   const [location, setLocation] = useState<{ lat: number, lng: number, accuracy: number } | null>(null);
@@ -122,6 +124,34 @@ export function UserDashboard({ profile }: { profile: UserProfile }) {
       }
     );
 
+    // Fetch All Teachers for this tenant
+    const unsubTeachers = onSnapshot(
+      query(collection(db, 'users'), where('tenant_id', '==', profile.tenant_id), where('role', '==', 'user')),
+      (snapshot) => {
+        setAllTeachers(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as UserProfile)));
+      },
+      (error) => {
+        handleFirestoreError(error, OperationType.LIST, 'users');
+      }
+    );
+
+    // Fetch Today's Attendance for all teachers in this tenant
+    const startOfToday = new Date();
+    startOfToday.setHours(0, 0, 0, 0);
+    const unsubTodayAttendance = onSnapshot(
+      query(
+        collection(db, 'attendance'), 
+        where('tenant_id', '==', profile.tenant_id),
+        where('check_in', '>=', startOfToday)
+      ),
+      (snapshot) => {
+        setTodayAttendance(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as AttendanceRecord)));
+      },
+      (error) => {
+        handleFirestoreError(error, OperationType.LIST, 'attendance');
+      }
+    );
+
     // Watch Location
     const watchId = navigator.geolocation.watchPosition(
       (pos) => setLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude, accuracy: pos.coords.accuracy }),
@@ -135,6 +165,8 @@ export function UserDashboard({ profile }: { profile: UserProfile }) {
       unsubJournals();
       unsubHolidays();
       unsubAnnouncements();
+      unsubTeachers();
+      unsubTodayAttendance();
       navigator.geolocation.clearWatch(watchId);
     };
   }, [profile.tenant_id, profile.id]);
@@ -555,20 +587,20 @@ export function UserDashboard({ profile }: { profile: UserProfile }) {
                   </div>
 
                   <div className="w-full space-y-4">
-                    <div className="flex w-full flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-0 rounded-2xl bg-gray-50 p-5 border border-gray-100">
-                      <div className="flex items-center gap-4">
-                        <div className={`p-3 rounded-xl ${location ? 'bg-green-100 text-green-600' : 'bg-gray-100 text-gray-400'}`}>
-                          <MapPin className="h-6 w-6" />
+                    <div className="flex w-full flex-col items-center justify-center gap-4 rounded-2xl bg-gray-50 p-6 border border-gray-100 text-center">
+                      <div className="flex flex-col items-center gap-3">
+                        <div className={`p-4 rounded-2xl shadow-sm ${location ? 'bg-green-100 text-green-600' : 'bg-gray-100 text-gray-400'}`}>
+                          <MapPin className="h-7 w-7" />
                         </div>
-                        <div className="text-left">
+                        <div>
                           <div className="text-sm font-bold text-gray-900">Status GPS</div>
-                          <div className="text-xs text-gray-500">
+                          <div className="text-xs text-gray-500 mt-1">
                             {location ? `Akurasi: ${location.accuracy.toFixed(1)}m` : 'Mencari lokasi...'}
                           </div>
                         </div>
                       </div>
                       {location && tenant && (
-                        <Badge variant={calculateDistance(location.lat, location.lng, tenant.lat, tenant.lng) <= tenant.radius ? 'default' : 'destructive'} className={`w-full sm:w-auto justify-center py-1.5 px-4 rounded-lg ${calculateDistance(location.lat, location.lng, tenant.lat, tenant.lng) <= tenant.radius ? 'bg-green-100 text-green-700 hover:bg-green-100' : ''}`}>
+                        <Badge variant={calculateDistance(location.lat, location.lng, tenant.lat, tenant.lng) <= tenant.radius ? 'default' : 'destructive'} className={`py-1.5 px-6 rounded-full text-[10px] font-bold tracking-wider uppercase ${calculateDistance(location.lat, location.lng, tenant.lat, tenant.lng) <= tenant.radius ? 'bg-green-100 text-green-700 hover:bg-green-100' : ''}`}>
                           {calculateDistance(location.lat, location.lng, tenant.lat, tenant.lng) <= tenant.radius ? 'Di Dalam Area' : 'Di Luar Area'}
                         </Badge>
                       )}
@@ -580,6 +612,85 @@ export function UserDashboard({ profile }: { profile: UserProfile }) {
                   </div>
                 </CardContent>
               </Card>
+
+              {/* Teachers Attendance Status Section */}
+              <div className="w-full max-w-md space-y-4">
+                <div className="flex items-center justify-between px-1">
+                  <h3 className="text-sm font-bold text-gray-900 flex items-center gap-2">
+                    <User className="h-4 w-4 text-green-600" />
+                    Status Kehadiran Rekan
+                  </h3>
+                  <Badge variant="outline" className="text-[10px] font-medium border-gray-200 text-gray-500">
+                    Hari Ini
+                  </Badge>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <Card className="border-none shadow-sm bg-blue-50/50">
+                    <CardContent className="p-4 text-center">
+                      <div className="text-2xl font-black text-blue-600">
+                        {allTeachers.filter(t => !todayAttendance.some(a => a.user_id === t.id)).length}
+                      </div>
+                      <div className="text-[10px] font-bold text-blue-700/70 uppercase tracking-tight">Belum Check In</div>
+                    </CardContent>
+                  </Card>
+                  <Card className="border-none shadow-sm bg-orange-50/50">
+                    <CardContent className="p-4 text-center">
+                      <div className="text-2xl font-black text-orange-600">
+                        {todayAttendance.filter(a => !a.check_out).length}
+                      </div>
+                      <div className="text-[10px] font-bold text-orange-700/70 uppercase tracking-tight">Belum Check Out</div>
+                    </CardContent>
+                  </Card>
+                </div>
+
+                <Card className="border-none shadow-sm overflow-hidden rounded-2xl">
+                  <div className="bg-white p-1">
+                    <div className="max-h-[300px] overflow-y-auto space-y-1 p-1">
+                      {allTeachers.length === 0 ? (
+                        <div className="py-8 text-center text-gray-400 text-xs italic">
+                          Tidak ada data guru
+                        </div>
+                      ) : (
+                        allTeachers.map(teacher => {
+                          const attendance = todayAttendance.find(a => a.user_id === teacher.id);
+                          return (
+                            <div key={teacher.id} className="flex items-center justify-between p-3 rounded-xl hover:bg-gray-50 transition-colors border border-transparent hover:border-gray-100">
+                              <div className="flex items-center gap-3">
+                                <div className="h-9 w-9 rounded-full bg-gray-100 border border-gray-200 overflow-hidden flex items-center justify-center">
+                                  {teacher.face_image_url ? (
+                                    <img src={teacher.face_image_url} alt="" className="h-full w-full object-cover" />
+                                  ) : (
+                                    <User className="h-5 w-5 text-gray-400" />
+                                  )}
+                                </div>
+                                <div>
+                                  <div className="text-xs font-bold text-gray-900 truncate max-w-[120px]">{teacher.name}</div>
+                                  <div className="text-[10px] text-gray-500">{teacher.role === 'admin' ? 'Admin' : 'Guru'}</div>
+                                </div>
+                              </div>
+                              <div className="flex flex-col items-end gap-1">
+                                {!attendance ? (
+                                  <Badge variant="outline" className="text-[9px] bg-gray-50 text-gray-400 border-gray-200">BELUM HADIR</Badge>
+                                ) : !attendance.check_out ? (
+                                  <Badge variant="outline" className="text-[9px] bg-green-50 text-green-600 border-green-100">SUDAH CHECK IN</Badge>
+                                ) : (
+                                  <Badge variant="outline" className="text-[9px] bg-blue-50 text-blue-600 border-blue-100">SELESAI</Badge>
+                                )}
+                                {attendance && (
+                                  <span className="text-[9px] text-gray-400 font-medium">
+                                    {attendance.check_in?.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })
+                      )}
+                    </div>
+                  </div>
+                </Card>
+              </div>
             </div>
           )}
         </>

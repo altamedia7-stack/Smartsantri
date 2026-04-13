@@ -20,14 +20,22 @@ export default defineConfig(({mode}) => {
           theme_color: '#16a34a',
           icons: [
             {
-              src: 'https://api.dicebear.com/7.x/initials/svg?seed=Smartsantri&backgroundColor=16a34a&fontFamily=Arial&fontWeight=700',
+              src: '/icon.svg',
               sizes: '192x192',
-              type: 'image/svg+xml'
+              type: 'image/svg+xml',
+              purpose: 'any'
             },
             {
-              src: 'https://api.dicebear.com/7.x/initials/svg?seed=Smartsantri&backgroundColor=16a34a&fontFamily=Arial&fontWeight=700',
+              src: '/icon.svg',
               sizes: '512x512',
-              type: 'image/svg+xml'
+              type: 'image/svg+xml',
+              purpose: 'any'
+            },
+            {
+              src: '/icon.svg',
+              sizes: '512x512',
+              type: 'image/svg+xml',
+              purpose: 'maskable'
             }
           ]
         },
