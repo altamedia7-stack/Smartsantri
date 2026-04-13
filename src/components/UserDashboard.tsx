@@ -13,10 +13,39 @@ import { auth } from '../firebase';
 import { signOut } from 'firebase/auth';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Loader2, MapPin, Camera, CheckCircle2, XCircle, AlertTriangle, Clock, History, BookOpen, Plus, Home, User, Calendar, Lock, MoreVertical, Bell, LogOut, Send, Settings, Info, ChevronRight, LogIn, LogOut as LogOutIcon, Scan, RefreshCw } from 'lucide-react';
-import { motion } from 'motion/react';
+import { motion, AnimatePresence } from 'motion/react';
 import { toast } from 'sonner';
 import { validateLocation, getFaceDescriptor, loadFaceModels, compareFaces, calculateDistance } from '../lib/attendance';
 import { handleFirestoreError, OperationType } from '../lib/errorUtils';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
+
+const WeeklyChart = ({ data }: { data: any[] }) => {
+  return (
+    <div className="h-40 w-full">
+      <ResponsiveContainer width="100%" height="100%">
+        <BarChart data={data} margin={{ top: 5, right: 5, left: -20, bottom: 5 }}>
+          <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f0f0f0" />
+          <XAxis 
+            dataKey="day" 
+            axisLine={false} 
+            tickLine={false} 
+            tick={{ fontSize: 10, fill: '#9ca3af', fontWeight: 600 }} 
+          />
+          <YAxis hide />
+          <Tooltip 
+            cursor={{ fill: '#f9fafb' }}
+            contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
+          />
+          <Bar dataKey="present" radius={[4, 4, 0, 0]} barSize={12}>
+            {data.map((entry, index) => (
+              <Cell key={`cell-${index}`} fill={entry.present > 0 ? '#22c55e' : '#ef4444'} />
+            ))}
+          </Bar>
+        </BarChart>
+      </ResponsiveContainer>
+    </div>
+  );
+};
 
 export function UserDashboard({ profile }: { profile: UserProfile }) {
   const [tenant, setTenant] = useState<Tenant | null>(null);
@@ -38,6 +67,9 @@ export function UserDashboard({ profile }: { profile: UserProfile }) {
   const [isChangingPassword, setIsChangingPassword] = useState(false);
   const [passwords, setPasswords] = useState({ current: '', new: '', confirm: '' });
   const [isUpdatingProfile, setIsUpdatingProfile] = useState(false);
+  const [isFaceScanning, setIsFaceScanning] = useState(false);
+  const [faceStatus, setFaceStatus] = useState<'detecting' | 'detected' | 'not_detected' | 'idle'>('idle');
+  const [unreadNotifications, setUnreadNotifications] = useState(2);
   const videoRef = useRef<HTMLVideoElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -172,10 +204,23 @@ export function UserDashboard({ profile }: { profile: UserProfile }) {
     }
 
     setIsCameraOpen(true);
+    setFaceStatus('detecting');
     await loadFaceModels();
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ video: true });
-      if (videoRef.current) videoRef.current.srcObject = stream;
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+        
+        // Face detection loop
+        const interval = setInterval(async () => {
+          if (!videoRef.current || !isCameraOpen) {
+            clearInterval(interval);
+            return;
+          }
+          const descriptor = await getFaceDescriptor(videoRef.current);
+          setFaceStatus(descriptor ? 'detected' : 'not_detected');
+        }, 1000);
+      }
     } catch (err) {
       toast.error('Akses kamera diperlukan untuk verifikasi wajah');
       setIsCameraOpen(false);
@@ -184,10 +229,23 @@ export function UserDashboard({ profile }: { profile: UserProfile }) {
 
   const handleStartFaceRegistration = async () => {
     setIsRegisteringFace(true);
+    setFaceStatus('detecting');
     await loadFaceModels();
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ video: true });
-      if (videoRef.current) videoRef.current.srcObject = stream;
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+
+        // Face detection loop
+        const interval = setInterval(async () => {
+          if (!videoRef.current || !isRegisteringFace) {
+            clearInterval(interval);
+            return;
+          }
+          const descriptor = await getFaceDescriptor(videoRef.current);
+          setFaceStatus(descriptor ? 'detected' : 'not_detected');
+        }, 1000);
+      }
     } catch (err) {
       toast.error('Akses kamera diperlukan untuk mendaftarkan wajah');
       setIsRegisteringFace(false);
@@ -424,205 +482,218 @@ export function UserDashboard({ profile }: { profile: UserProfile }) {
   const todayStr = new Date().toISOString().split('T')[0];
   const todayHoliday = holidays.find(h => h.date === todayStr);
   const isWeeklyOff = tenant?.off_days?.includes(new Date().getDay());
+  
+  const weeklyData = [
+    { day: 'Sen', present: history.some(h => h.check_in?.toDate().getDay() === 1) ? 1 : 0 },
+    { day: 'Sel', present: history.some(h => h.check_in?.toDate().getDay() === 2) ? 1 : 0 },
+    { day: 'Rab', present: history.some(h => h.check_in?.toDate().getDay() === 3) ? 1 : 0 },
+    { day: 'Kam', present: history.some(h => h.check_in?.toDate().getDay() === 4) ? 1 : 0 },
+    { day: 'Jum', present: history.some(h => h.check_in?.toDate().getDay() === 5) ? 1 : 0 },
+    { day: 'Sab', present: history.some(h => h.check_in?.toDate().getDay() === 6) ? 1 : 0 },
+    { day: 'Min', present: history.some(h => h.check_in?.toDate().getDay() === 0) ? 1 : 0 },
+  ];
 
   return (
     <div className="space-y-6 sm:space-y-8 pb-24 sm:pb-8">
       {activeTab === 'home' && (
         <>
-          <div className="bg-gradient-to-br from-green-600 via-green-600 to-green-700 px-4 py-4 sm:px-10 sm:py-8 lg:px-12 shadow-md relative -mx-4 sm:-mx-6 lg:-mx-8 mt-0 mb-8 border-b border-green-500/20">
+          {/* PREMIUM HEADER */}
+          <div className="bg-gradient-to-br from-green-600 via-green-500 to-emerald-400 px-6 pt-14 pb-12 shadow-2xl relative -mx-4 sm:-mx-6 lg:-mx-8 -mt-12 mb-8 rounded-b-[2.5rem]">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-4">
-                <div className="h-14 w-14 overflow-hidden rounded-full border-2 border-white/40 bg-white/10 shadow-lg">
-                  {profile.face_image_url ? (
-                    <img src={profile.face_image_url} alt="Profile" className="h-full w-full object-cover" />
-                  ) : (
-                    <User className="h-full w-full p-2 text-white" />
-                  )}
+                <div className="relative">
+                  <div className="h-16 w-16 overflow-hidden rounded-full border-4 border-white/30 bg-white/10 shadow-xl backdrop-blur-md">
+                    {profile.face_image_url ? (
+                      <img src={profile.face_image_url} alt="Profile" className="h-full w-full object-cover" />
+                    ) : (
+                      <User className="h-full w-full p-3 text-white" />
+                    )}
+                  </div>
+                  <div className="absolute bottom-0 right-0 h-4 w-4 rounded-full border-2 border-white bg-green-500 shadow-sm" />
                 </div>
                 <div className="text-white">
-                  <h1 className="text-xl font-extrabold tracking-tight leading-tight">{profile.name}</h1>
+                  <h1 className="text-xl font-black tracking-tight leading-tight">{profile.name}</h1>
                   <div className="flex items-center gap-2 mt-1">
-                    <div className="h-1.5 w-1.5 rounded-full bg-green-300 shadow-[0_0_8px_rgba(134,239,172,0.8)]" />
-                    <p className="text-[10px] text-white/90 uppercase font-bold tracking-[0.15em]">{tenant?.name || 'SMARTSANTRI'}</p>
+                    <p className="text-[10px] text-white/80 uppercase font-bold tracking-[0.15em]">{tenant?.name || 'SMARTSANTRI'}</p>
                   </div>
                 </div>
               </div>
-              <DropdownMenu>
-                <DropdownMenuTrigger render={<Button variant="ghost" size="icon" className="text-white hover:bg-white/20" />}>
-                  <Settings className="h-6 w-6" />
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-48 rounded-xl">
-                  <DropdownMenuItem onClick={() => signOut(auth)} className="cursor-pointer py-3 text-gray-700">
-                    <LogOut className="mr-3 h-4 w-4" />
-                    <span className="font-medium">Keluar</span>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => setActiveTab('profile')} className="cursor-pointer py-3 text-gray-700">
-                    <User className="mr-3 h-4 w-4" />
-                    <span className="font-medium">Profil</span>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem className="cursor-pointer py-3 text-gray-700">
-                    <Bell className="mr-3 h-4 w-4" />
-                    <span className="font-medium">Notifikasi</span>
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
+              <div className="flex items-center gap-2">
+                <div className="relative">
+                  <Button variant="ghost" size="icon" className="text-white hover:bg-white/20 rounded-2xl h-12 w-12">
+                    <Bell className="h-6 w-6" />
+                  </Button>
+                  {unreadNotifications > 0 && (
+                    <span className="absolute top-2 right-2 h-4 w-4 bg-red-500 border-2 border-green-500 rounded-full flex items-center justify-center text-[8px] font-bold text-white">
+                      {unreadNotifications}
+                    </span>
+                  )}
+                </div>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" size="icon" className="text-white hover:bg-white/20 rounded-2xl h-12 w-12">
+                      <Settings className="h-6 w-6" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-56 rounded-[1.5rem] p-2 shadow-2xl border-gray-100">
+                    <DropdownMenuItem onClick={() => signOut(auth)} className="cursor-pointer py-3 rounded-xl text-red-600 focus:text-red-600 focus:bg-red-50">
+                      <LogOut className="mr-3 h-4 w-4" />
+                      <span className="font-bold">Keluar</span>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => setActiveTab('profile')} className="cursor-pointer py-3 rounded-xl">
+                      <User className="mr-3 h-4 w-4" />
+                      <span className="font-bold">Profil</span>
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
             </div>
           </div>
 
-          {announcements.map(announcement => (
-            <Card key={announcement.id} className={`mx-auto w-full max-w-md border shadow-xl rounded-3xl overflow-hidden mb-8 ${
-              announcement.type === 'birthday' ? 'border-orange-100 shadow-orange-100/30 bg-[#fffdf5]' :
-              announcement.type === 'warning' ? 'border-red-100 shadow-red-100/30 bg-red-50/50' :
-              'border-blue-100 shadow-blue-100/30 bg-blue-50/50'
-            }`}>
-              <CardContent className="p-6 text-center">
-                <div className="mb-4 flex justify-center">
-                  {announcement.type === 'birthday' ? (
-                    <img src="https://cdn-icons-png.flaticon.com/512/4213/4213958.png" alt="Happy Birthday" className="h-20 object-contain drop-shadow-sm" />
-                  ) : announcement.type === 'warning' ? (
-                    <AlertTriangle className="h-16 w-16 text-red-500" />
-                  ) : (
-                    <Info className="h-16 w-16 text-blue-500" />
-                  )}
-                </div>
-                <p className="text-sm text-gray-700 leading-relaxed">
-                  <strong className="text-gray-900">{announcement.title}</strong>
-                  {announcement.type === 'birthday' ? ', ' : ' - '}
-                  {announcement.message}
-                </p>
-              </CardContent>
-            </Card>
-          ))}
-
-          {(todayHoliday || isWeeklyOff) ? (
-            <Card className="mx-auto w-full max-w-md border-none shadow-xl shadow-red-100/50 bg-red-50/30">
-              <CardContent className="flex flex-col items-center py-10 text-center">
-                <div className="mb-6 flex h-24 w-24 items-center justify-center rounded-full bg-red-100 text-red-600">
-                  <Calendar className="h-12 w-12" />
-                </div>
-                <h2 className="mb-2 text-xl font-bold text-red-900">
-                  {todayHoliday ? `Hari Libur: ${todayHoliday.name}` : 'Libur Mingguan'}
-                </h2>
-                <p className="mb-4 text-sm text-red-600/80">
-                  Hari ini sistem absensi dinonaktifkan karena hari libur. Selamat beristirahat!
-                </p>
-                <Badge variant="outline" className="border-red-200 text-red-700 bg-white">
-                  {new Date().toLocaleDateString('id-ID', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}
-                </Badge>
-              </CardContent>
-            </Card>
-          ) : !profile.face_descriptor || profile.face_descriptor.length === 0 ? (
-            <Card className="mx-auto w-full max-w-md border-none shadow-xl shadow-gray-200/50">
-              <CardContent className="flex flex-col items-center py-10 text-center">
-                <div className="mb-6 flex h-24 w-24 items-center justify-center rounded-full bg-yellow-50 text-yellow-600">
-                  <Camera className="h-12 w-12" />
-                </div>
-                <h2 className="mb-2 text-xl font-bold text-gray-900">Pendaftaran Wajah Diperlukan</h2>
-                <p className="mb-8 text-sm text-gray-500">
-                  Untuk melakukan absensi, Anda harus mendaftarkan wajah Anda terlebih dahulu. Pastikan Anda berada di tempat dengan pencahayaan yang baik.
-                </p>
-                <Button 
-                  size="lg" 
-                  onClick={handleStartFaceRegistration}
-                  className="w-full rounded-xl bg-blue-600 hover:bg-blue-700"
-                >
-                  <Camera className="mr-2 h-5 w-5" /> Daftarkan Wajah Sekarang
-                </Button>
-              </CardContent>
-            </Card>
-          ) : (
-            <div className="flex flex-col items-center justify-center gap-6">
-              <Card className="w-full max-w-md border-none shadow-xl shadow-gray-200/50">
-                <CardContent className="flex flex-col items-center py-10">
-                  <div className="relative mb-8">
-                    {location && (
-                      <div 
-                        className="absolute inset-0 rounded-full overflow-hidden opacity-40 blur-[1px]"
-                        style={{
-                          backgroundImage: `url(https://static-maps.yandex.ru/1.x/?ll=${location.lng},${location.lat}&z=16&l=map&size=250,250)`,
-                          backgroundSize: 'cover',
-                          backgroundPosition: 'center'
-                        }}
-                      />
+          {/* MAIN CHECK-IN CARD */}
+          <motion.div 
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="relative -mt-20 px-4 sm:px-0"
+          >
+            <Card className="mx-auto w-full max-w-md border-none shadow-[0_20px_50px_rgba(0,0,0,0.1)] rounded-[2.5rem] overflow-hidden bg-white/80 backdrop-blur-xl">
+              <CardContent className="flex flex-col items-center py-10">
+                <AnimatePresence mode="wait">
+                  <motion.div 
+                    key={isCheckedIn ? 'checked-in' : 'not-checked-in'}
+                    initial={{ scale: 0.8, opacity: 0 }}
+                    animate={{ scale: 1, opacity: 1 }}
+                    exit={{ scale: 0.8, opacity: 0 }}
+                    className={`relative flex h-36 w-36 items-center justify-center rounded-full border-[10px] ${isCheckedIn ? 'border-orange-50 bg-orange-100/50 text-orange-600' : 'border-green-50 bg-green-100/50 text-green-600'} transition-all duration-500 shadow-inner mb-8`}
+                  >
+                    {isCheckedIn ? (
+                      <Clock className="h-16 w-16 animate-pulse" />
+                    ) : (
+                      <motion.div
+                        initial={{ pathLength: 0 }}
+                        animate={{ pathLength: 1 }}
+                      >
+                        <CheckCircle2 className="h-16 w-16" />
+                      </motion.div>
                     )}
-                    <div className={`relative flex h-32 w-32 items-center justify-center rounded-full border-8 ${isCheckedIn ? 'border-orange-100 bg-orange-50/80 text-orange-600' : 'border-green-100 bg-green-50/80 text-green-600'} transition-all duration-500 backdrop-blur-[2px] shadow-inner`}>
-                      {isCheckedIn ? <Clock className="h-16 w-16" /> : <CheckCircle2 className="h-16 w-16" />}
+                  </motion.div>
+                </AnimatePresence>
+
+                <div className="text-center space-y-1 mb-8">
+                  <h2 className="text-5xl font-black tracking-tighter text-gray-900">
+                    {new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                  </h2>
+                  <p className="text-sm font-bold text-gray-400 uppercase tracking-widest">
+                    {new Date().toLocaleDateString('id-ID', { weekday: 'long', month: 'long', day: 'numeric' })}
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-2 bg-gray-50 px-4 py-2 rounded-2xl border border-gray-100">
+                  <Clock className="h-4 w-4 text-blue-500" />
+                  <span className="text-xs font-bold text-gray-600">
+                    {isCheckedIn 
+                      ? `Check-out: ${tenant?.check_out_time || '16:00'}`
+                      : `Check-in: ${tenant?.check_in_time || '07:00'}`
+                    }
+                  </span>
+                </div>
+              </CardContent>
+            </Card>
+          </motion.div>
+
+          {/* ANALYTICS & SUMMARY */}
+          <div className="w-full max-w-md mx-auto space-y-6 px-4 sm:px-0 mt-8">
+            {/* WEEKLY CHART */}
+            <Card className="border-none shadow-xl shadow-gray-100/50 rounded-[2rem] overflow-hidden bg-white">
+              <CardHeader className="pb-2">
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-sm font-black uppercase tracking-widest text-gray-400">Kehadiran Mingguan</CardTitle>
+                  <Badge variant="secondary" className="bg-green-50 text-green-700 border-green-100">7 Hari Terakhir</Badge>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <WeeklyChart data={weeklyData} />
+              </CardContent>
+            </Card>
+
+            {/* GPS & LOCATION STATUS */}
+            <Card className={`border-none shadow-xl rounded-[2rem] overflow-hidden transition-all duration-500 ${location && tenant && calculateDistance(location.lat, location.lng, tenant.lat, tenant.lng) <= tenant.radius ? 'bg-green-50/50 shadow-green-100/50' : 'bg-red-50/50 shadow-red-100/50'}`}>
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center gap-3">
+                    <div className={`p-3 rounded-2xl ${location ? 'bg-white shadow-sm text-green-600' : 'bg-white shadow-sm text-gray-400'}`}>
+                      <MapPin className="h-6 w-6" />
+                    </div>
+                    <div>
+                      <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">Live GPS Status</p>
+                      <p className="text-sm font-bold text-gray-900">
+                        {location ? `Akurasi: ${location.accuracy.toFixed(1)}m` : 'Mencari lokasi...'}
+                      </p>
                     </div>
                   </div>
-
-                  <div className="mb-8 text-center">
-                    <div className="text-4xl font-black tracking-tight text-gray-900">
-                      {new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                    </div>
-                    <div className="text-sm font-medium text-gray-500">{new Date().toLocaleDateString('id-ID', { weekday: 'long', month: 'long', day: 'numeric' })}</div>
+                  <Button 
+                    variant="ghost" 
+                    size="icon" 
+                    className="h-10 w-10 rounded-xl bg-white shadow-sm text-gray-400 hover:text-green-600"
+                    onClick={() => {
+                      navigator.geolocation.getCurrentPosition(
+                        (pos) => setLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude, accuracy: pos.coords.accuracy }),
+                        () => toast.error('Gagal memperbarui lokasi')
+                      );
+                    }}
+                  >
+                    <RefreshCw className="h-4 w-4" />
+                  </Button>
+                </div>
+                
+                {location && (
+                  <div className="relative h-32 w-full rounded-2xl overflow-hidden border border-white shadow-inner mb-4">
+                    <div 
+                      className="absolute inset-0"
+                      style={{
+                        backgroundImage: `url(https://static-maps.yandex.ru/1.x/?ll=${location.lng},${location.lat}&z=16&l=map&size=450,250&pt=${location.lng},${location.lat},pm2gnm)`,
+                        backgroundSize: 'cover',
+                        backgroundPosition: 'center'
+                      }}
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent" />
                   </div>
+                )}
 
-                  <div className="mb-6 text-center">
-                    <Badge variant="secondary" className="bg-blue-50 text-blue-700 hover:bg-blue-50 border-blue-100 px-4 py-1">
-                      <Clock className="mr-2 h-3 w-3" />
-                      {isCheckedIn 
-                        ? `Jadwal Check-out: ${tenant?.check_out_time || '16:00'} - ${tenant?.check_out_end_time || '18:00'}`
-                        : `Jadwal Check-in: ${tenant?.check_in_time || '07:00'} - ${tenant?.check_in_end_time || '09:00'}`
-                      }
-                    </Badge>
+                {location && tenant && (
+                  <div className={`w-full py-3 text-center rounded-2xl text-xs font-black uppercase tracking-widest ${calculateDistance(location.lat, location.lng, tenant.lat, tenant.lng) <= tenant.radius ? 'bg-green-500 text-white shadow-lg shadow-green-200' : 'bg-red-500 text-white shadow-lg shadow-red-200'}`}>
+                    {calculateDistance(location.lat, location.lng, tenant.lat, tenant.lng) <= tenant.radius ? 'Dalam Area Sekolah' : 'Di Luar Area Sekolah'}
                   </div>
+                )}
+              </CardContent>
+            </Card>
 
-                  <div className="w-full space-y-4">
-                    <div className="flex w-full flex-col gap-4 rounded-3xl bg-gray-50/80 p-5 border border-gray-100">
-                      <div className="flex items-center gap-4">
-                        <div className={`p-3 rounded-2xl ${location ? 'bg-green-100 text-green-600' : 'bg-gray-100 text-gray-400'}`}>
-                          <MapPin className="h-6 w-6" />
-                        </div>
-                        <div className="text-left flex-1">
-                          <div className="flex items-center justify-between">
-                            <div className="text-sm font-bold text-gray-900">Status GPS</div>
-                            <Button 
-                              variant="ghost" 
-                              size="icon" 
-                              className="h-6 w-6 text-gray-400 hover:text-green-600"
-                              onClick={() => {
-                                navigator.geolocation.getCurrentPosition(
-                                  (pos) => setLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude, accuracy: pos.coords.accuracy }),
-                                  () => toast.error('Gagal memperbarui lokasi')
-                                );
-                              }}
-                            >
-                              <RefreshCw className="h-3 w-3" />
-                            </Button>
-                          </div>
-                          <div className="text-xs text-gray-500">
-                            {location ? `Akurasi: ${location.accuracy.toFixed(1)}m` : 'Mencari lokasi...'}
-                          </div>
-                        </div>
-                      </div>
-                      {location && tenant && (
-                        <div className={`w-full py-2.5 text-center rounded-xl text-xs font-semibold ${calculateDistance(location.lat, location.lng, tenant.lat, tenant.lng) <= tenant.radius ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-600'}`}>
-                          {calculateDistance(location.lat, location.lng, tenant.lat, tenant.lng) <= tenant.radius ? 'Di Dalam Area' : 'Di Luar Area'}
-                        </div>
-                      )}
-                    </div>
-                    
-                    <p className="text-center text-[11px] text-gray-400 italic">
-                      Gunakan tombol tengah di menu bawah untuk melakukan absensi
-                    </p>
-
-                    <div className="pt-4 border-t border-gray-100">
-                      <div className="flex items-center justify-between">
-                        <div className="text-sm font-bold text-gray-900">Status Hari Ini</div>
-                        {!lastLog || lastLog.check_in?.toDate().toDateString() !== new Date().toDateString() ? (
-                          <Badge variant="outline" className="bg-gray-50 text-gray-500 border-gray-200">Belum Check In</Badge>
-                        ) : !lastLog.check_out ? (
-                          <Badge variant="outline" className="bg-green-50 text-green-600 border-green-200">Sudah Check In</Badge>
-                        ) : (
-                          <Badge variant="outline" className="bg-blue-50 text-blue-600 border-blue-200">Selesai (Check Out)</Badge>
-                        )}
-                      </div>
-                    </div>
+            {/* DAILY SUMMARY */}
+            <div className="grid grid-cols-2 gap-4">
+              <Card className="border-none shadow-xl shadow-gray-100/50 rounded-[2rem] bg-white p-5">
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="h-8 w-8 rounded-lg bg-green-50 text-green-600 flex items-center justify-center">
+                    <LogIn className="h-4 w-4" />
                   </div>
-                </CardContent>
+                  <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">Jam Masuk</p>
+                </div>
+                <p className="text-xl font-black text-gray-900">
+                  {lastLog?.check_in ? lastLog.check_in.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '--:--'}
+                </p>
+              </Card>
+              <Card className="border-none shadow-xl shadow-gray-100/50 rounded-[2rem] bg-white p-5">
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="h-8 w-8 rounded-lg bg-orange-50 text-orange-600 flex items-center justify-center">
+                    <LogOutIcon className="h-4 w-4" />
+                  </div>
+                  <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">Jam Keluar</p>
+                </div>
+                <p className="text-xl font-black text-gray-900">
+                  {lastLog?.check_out ? lastLog.check_out.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '--:--'}
+                </p>
               </Card>
             </div>
-          )}
+          </div>
         </>
       )}
 
@@ -1015,160 +1086,186 @@ export function UserDashboard({ profile }: { profile: UserProfile }) {
       )}
 
       {/* Bottom Navigation Bar for Mobile */}
-      <div className="fixed bottom-0 left-0 right-0 z-40 border-t bg-white/80 backdrop-blur-lg pb-safe sm:hidden">
-        <div className="flex justify-between items-center px-4 py-1 relative h-16">
+      <div className="fixed bottom-0 left-0 right-0 z-50 border-t border-gray-100 bg-white/80 backdrop-blur-2xl pb-safe sm:hidden rounded-t-[2rem] shadow-[0_-10px_40px_rgba(0,0,0,0.05)]">
+        <div className="flex justify-around items-center px-2 py-2 relative h-20">
           <button 
             onClick={() => setActiveTab('home')}
-            className={`flex flex-col items-center py-2 min-w-[50px] transition-colors ${activeTab === 'home' ? 'text-green-600' : 'text-gray-400'}`}
+            className={`flex flex-col items-center justify-center w-16 h-16 rounded-2xl transition-all ${activeTab === 'home' ? 'text-green-600 bg-green-50' : 'text-gray-400'}`}
           >
-            <Home className="h-5 w-5 mb-1" />
-            <span className="text-[9px] font-bold">BERANDA</span>
+            <Home className="h-6 w-6" />
+            <span className="text-[8px] font-black mt-1 uppercase tracking-widest">Home</span>
           </button>
           <button 
             onClick={() => setActiveTab('journal')}
-            className={`flex flex-col items-center py-2 min-w-[50px] transition-colors ${activeTab === 'journal' ? 'text-green-600' : 'text-gray-400'}`}
+            className={`flex flex-col items-center justify-center w-16 h-16 rounded-2xl transition-all ${activeTab === 'journal' ? 'text-green-600 bg-green-50' : 'text-gray-400'}`}
           >
-            <BookOpen className="h-5 w-5 mb-1" />
-            <span className="text-[9px] font-bold">JURNAL</span>
+            <BookOpen className="h-6 w-6" />
+            <span className="text-[8px] font-black mt-1 uppercase tracking-widest">Jurnal</span>
           </button>
 
-          {/* Central Check In/Out Button */}
-          <div className="relative -top-6">
-            <div className="absolute -inset-2 bg-white rounded-full shadow-md" />
-            <button
+          {/* Central Floating Button */}
+          <div className="relative -top-8">
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.9 }}
               onClick={isCheckedIn ? handleCheckOut : handleCheckIn}
               disabled={isProcessing || !location}
-              className={`relative flex h-16 w-16 items-center justify-center rounded-full shadow-2xl transition-all active:scale-90 border-4 border-white ${
-                isCheckedIn ? 'bg-orange-600 hover:bg-orange-700' : 'bg-green-600 hover:bg-green-700'
+              className={`flex h-20 w-20 items-center justify-center rounded-full shadow-[0_15px_30px_rgba(34,197,94,0.3)] transition-all border-8 border-white ${
+                isCheckedIn ? 'bg-orange-500 shadow-orange-200' : 'bg-green-500 shadow-green-200'
               } ${isProcessing || !location ? 'opacity-50 grayscale' : ''}`}
             >
               {isProcessing ? (
-                <Loader2 className="h-8 w-8 animate-spin text-white" />
+                <Loader2 className="h-10 w-10 animate-spin text-white" />
               ) : isCheckedIn ? (
-                <LogOut className="h-8 w-8 text-white" />
+                <LogOut className="h-10 w-10 text-white" />
               ) : (
-                <Camera className="h-8 w-8 text-white" />
+                <Camera className="h-10 w-10 text-white" />
               )}
-            </button>
-            <span className={`absolute -bottom-6 left-1/2 -translate-x-1/2 text-[10px] font-black tracking-tighter whitespace-nowrap ${
-              isCheckedIn ? 'text-orange-600' : 'text-green-600'
-            }`}>
-              {isCheckedIn ? 'CHECK OUT' : 'CHECK IN'}
-            </span>
+            </motion.button>
           </div>
 
           <button 
             onClick={() => setActiveTab('history')}
-            className={`flex flex-col items-center py-2 min-w-[50px] transition-colors ${activeTab === 'history' ? 'text-green-600' : 'text-gray-400'}`}
+            className={`flex flex-col items-center justify-center w-16 h-16 rounded-2xl transition-all ${activeTab === 'history' ? 'text-green-600 bg-green-50' : 'text-gray-400'}`}
           >
-            <History className="h-5 w-5 mb-1" />
-            <span className="text-[9px] font-bold">RIWAYAT</span>
+            <History className="h-6 w-6" />
+            <span className="text-[8px] font-black mt-1 uppercase tracking-widest">Riwayat</span>
           </button>
           <button 
             onClick={() => setActiveTab('profile')}
-            className={`flex flex-col items-center py-2 min-w-[50px] transition-colors ${activeTab === 'profile' ? 'text-green-600' : 'text-gray-400'}`}
+            className={`flex flex-col items-center justify-center w-16 h-16 rounded-2xl transition-all ${activeTab === 'profile' ? 'text-green-600 bg-green-50' : 'text-gray-400'}`}
           >
-            <User className="h-5 w-5 mb-1" />
-            <span className="text-[9px] font-bold">PROFIL</span>
+            <User className="h-6 w-6" />
+            <span className="text-[8px] font-black mt-1 uppercase tracking-widest">Profil</span>
           </button>
         </div>
       </div>
 
-      {isCameraOpen && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/90 p-4 backdrop-blur-sm">
-          <div className="w-full max-w-md overflow-hidden rounded-3xl bg-white shadow-2xl">
-            <div className="p-6 text-center">
-              <h2 className="text-xl font-bold text-gray-900">Verifikasi Wajah</h2>
-              <p className="text-sm text-gray-500">Memindai kecocokan biometrik...</p>
-            </div>
-            <div className="relative aspect-[3/4] sm:aspect-square w-full bg-black">
-              <video ref={videoRef} autoPlay muted playsInline className="h-full w-full object-cover" />
-              <div className="absolute inset-0 flex items-center justify-center">
-                <div className="h-56 w-56 sm:h-64 sm:w-64 rounded-full border-2 border-green-500/50 shadow-[0_0_0_1000px_rgba(0,0,0,0.5)]" />
-                {isProcessing && (
-                  <div className="absolute inset-0 flex items-center justify-center bg-black/20">
-                    <Loader2 className="h-12 w-12 animate-spin text-white" />
-                  </div>
-                )}
+      <AnimatePresence>
+        {isCameraOpen && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[100] flex items-center justify-center bg-black/95 p-4 backdrop-blur-xl"
+          >
+            <div className="w-full max-w-md overflow-hidden rounded-[3rem] bg-white shadow-2xl">
+              <div className="p-8 text-center space-y-2">
+                <h2 className="text-2xl font-black text-gray-900 tracking-tight">Verifikasi Wajah</h2>
+                <div className="flex items-center justify-center gap-2">
+                  <div className={`h-2 w-2 rounded-full ${faceStatus === 'detected' ? 'bg-green-500' : 'bg-red-500'} animate-pulse`} />
+                  <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">
+                    {faceStatus === 'detected' ? 'Wajah Terdeteksi' : 'Mencari Wajah...'}
+                  </p>
+                </div>
+              </div>
+              <div className="relative aspect-square w-full bg-black overflow-hidden">
+                <video ref={videoRef} autoPlay muted playsInline className="h-full w-full object-cover scale-x-[-1]" />
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <div className={`h-64 w-64 rounded-full border-4 ${faceStatus === 'detected' ? 'border-green-500 shadow-[0_0_50px_rgba(34,197,94,0.5)]' : 'border-white/30'} transition-all duration-500 shadow-[0_0_0_1000px_rgba(0,0,0,0.6)]`} />
+                  
+                  {/* SCANNING ANIMATION */}
+                  <motion.div 
+                    animate={{ top: ['20%', '80%', '20%'] }}
+                    transition={{ duration: 3, repeat: Infinity, ease: "linear" }}
+                    className="absolute left-1/2 -translate-x-1/2 w-64 h-1 bg-green-500/50 shadow-[0_0_15px_rgba(34,197,94,0.8)] z-10"
+                  />
+                </div>
+              </div>
+              <div className="flex gap-4 p-8">
+                <Button variant="outline" className="flex-1 h-14 rounded-2xl font-bold text-gray-500 border-gray-100" onClick={() => {
+                  setIsCameraOpen(false);
+                  const stream = videoRef.current?.srcObject as MediaStream;
+                  stream?.getTracks().forEach(track => track.stop());
+                }}>Batal</Button>
+                <Button 
+                  className="flex-1 h-14 rounded-2xl font-black uppercase tracking-widest bg-green-600 hover:bg-green-700 shadow-lg shadow-green-200" 
+                  onClick={processCheckIn} 
+                  disabled={isProcessing}
+                >
+                  {isProcessing ? <Loader2 className="h-5 w-5 animate-spin" /> : 'Verifikasi'}
+                </Button>
               </div>
             </div>
-            <div className="flex gap-3 p-6">
-              <Button variant="outline" className="flex-1" onClick={() => {
-                setIsCameraOpen(false);
-                const stream = videoRef.current?.srcObject as MediaStream;
-                stream?.getTracks().forEach(track => track.stop());
-              }}>Batal</Button>
-              <Button className="flex-1 bg-green-600 hover:bg-green-700" onClick={processCheckIn} disabled={isProcessing}>
-                Verifikasi & Check In
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
+          </motion.div>
+        )}
+      </AnimatePresence>
 
-      {isRegisteringFace && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/90 p-4 backdrop-blur-sm">
-          <div className="w-full max-w-md overflow-hidden rounded-3xl bg-white shadow-2xl">
-            <div className="p-6 text-center">
-              <h2 className="text-xl font-bold text-gray-900">Daftarkan Wajah</h2>
-              <p className="text-sm text-gray-500">Posisikan wajah Anda di dalam lingkaran</p>
-            </div>
-            <div className="relative aspect-[3/4] sm:aspect-square w-full bg-black">
-              <video ref={videoRef} autoPlay muted playsInline className="h-full w-full object-cover" />
-              <div className="absolute inset-0 flex items-center justify-center">
-                <div className="h-56 w-56 sm:h-64 sm:w-64 rounded-full border-2 border-blue-500/50 shadow-[0_0_0_1000px_rgba(0,0,0,0.5)]" />
-                {isProcessing && (
-                  <div className="absolute inset-0 flex items-center justify-center bg-black/20">
-                    <Loader2 className="h-12 w-12 animate-spin text-white" />
-                  </div>
-                )}
+      <AnimatePresence>
+        {isRegisteringFace && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[100] flex items-center justify-center bg-black/95 p-4 backdrop-blur-xl"
+          >
+            <div className="w-full max-w-md overflow-hidden rounded-[3rem] bg-white shadow-2xl">
+              <div className="p-8 text-center space-y-2">
+                <h2 className="text-2xl font-black text-gray-900 tracking-tight">Daftarkan Wajah</h2>
+                <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">Posisikan wajah di dalam lingkaran</p>
+              </div>
+              <div className="relative aspect-square w-full bg-black overflow-hidden">
+                <video ref={videoRef} autoPlay muted playsInline className="h-full w-full object-cover scale-x-[-1]" />
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <div className="h-64 w-64 rounded-full border-4 border-blue-500 shadow-[0_0_50px_rgba(59,130,246,0.3)] shadow-[0_0_0_1000px_rgba(0,0,0,0.6)]" />
+                </div>
+              </div>
+              <div className="flex gap-4 p-8">
+                <Button variant="outline" className="flex-1 h-14 rounded-2xl font-bold text-gray-500 border-gray-100" onClick={() => {
+                  setIsRegisteringFace(false);
+                  const stream = videoRef.current?.srcObject as MediaStream;
+                  stream?.getTracks().forEach(track => track.stop());
+                }}>Batal</Button>
+                <Button 
+                  className="flex-1 h-14 rounded-2xl font-black uppercase tracking-widest bg-blue-600 hover:bg-blue-700 shadow-lg shadow-blue-200" 
+                  onClick={processFaceRegistration} 
+                  disabled={isProcessing}
+                >
+                  {isProcessing ? <Loader2 className="h-5 w-5 animate-spin" /> : 'Simpan Wajah'}
+                </Button>
               </div>
             </div>
-            <div className="flex gap-3 p-6">
-              <Button variant="outline" className="flex-1" onClick={() => {
-                setIsRegisteringFace(false);
-                const stream = videoRef.current?.srcObject as MediaStream;
-                stream?.getTracks().forEach(track => track.stop());
-              }}>Batal</Button>
-              <Button className="flex-1 bg-blue-600 hover:bg-blue-700" onClick={processFaceRegistration} disabled={isProcessing}>
-                Simpan Wajah
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
+          </motion.div>
+        )}
+      </AnimatePresence>
 
-      {isProfileCameraOpen && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/90 p-4 backdrop-blur-sm">
-          <div className="w-full max-w-md overflow-hidden rounded-3xl bg-white shadow-2xl">
-            <div className="p-6 text-center">
-              <h2 className="text-xl font-bold text-gray-900">Ambil Foto Profil</h2>
-              <p className="text-sm text-gray-500">Ambil foto baru untuk profil Anda</p>
-            </div>
-            <div className="relative aspect-[3/4] sm:aspect-square w-full bg-black">
-              <video ref={videoRef} autoPlay muted playsInline className="h-full w-full object-cover" />
-              <div className="absolute inset-0 flex items-center justify-center">
-                <div className="h-56 w-56 sm:h-64 sm:w-64 rounded-full border-2 border-green-500/50 shadow-[0_0_0_1000px_rgba(0,0,0,0.5)]" />
-                {isProcessing && (
-                  <div className="absolute inset-0 flex items-center justify-center bg-black/20">
-                    <Loader2 className="h-12 w-12 animate-spin text-white" />
-                  </div>
-                )}
+      <AnimatePresence>
+        {isProfileCameraOpen && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[100] flex items-center justify-center bg-black/95 p-4 backdrop-blur-xl"
+          >
+            <div className="w-full max-w-md overflow-hidden rounded-[3rem] bg-white shadow-2xl">
+              <div className="p-8 text-center space-y-2">
+                <h2 className="text-2xl font-black text-gray-900 tracking-tight">Ambil Foto Profil</h2>
+                <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">Ambil foto baru untuk profil Anda</p>
+              </div>
+              <div className="relative aspect-square w-full bg-black overflow-hidden">
+                <video ref={videoRef} autoPlay muted playsInline className="h-full w-full object-cover scale-x-[-1]" />
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <div className="h-64 w-64 rounded-full border-4 border-green-500 shadow-[0_0_50px_rgba(34,197,94,0.3)] shadow-[0_0_0_1000px_rgba(0,0,0,0.6)]" />
+                </div>
+              </div>
+              <div className="flex gap-4 p-8">
+                <Button variant="outline" className="flex-1 h-14 rounded-2xl font-bold text-gray-500 border-gray-100" onClick={() => {
+                  setIsProfileCameraOpen(false);
+                  const stream = videoRef.current?.srcObject as MediaStream;
+                  stream?.getTracks().forEach(track => track.stop());
+                }}>Batal</Button>
+                <Button 
+                  className="flex-1 h-14 rounded-2xl font-black uppercase tracking-widest bg-green-600 hover:bg-green-700 shadow-lg shadow-green-200" 
+                  onClick={processProfilePhotoCapture} 
+                  disabled={isProcessing}
+                >
+                  {isProcessing ? <Loader2 className="h-5 w-5 animate-spin" /> : 'Ambil Foto'}
+                </Button>
               </div>
             </div>
-            <div className="flex gap-3 p-6">
-              <Button variant="outline" className="flex-1" onClick={() => {
-                setIsProfileCameraOpen(false);
-                const stream = videoRef.current?.srcObject as MediaStream;
-                stream?.getTracks().forEach(track => track.stop());
-              }}>Batal</Button>
-              <Button className="flex-1 bg-green-600 hover:bg-green-700" onClick={processProfilePhotoCapture} disabled={isProcessing}>
-                Ambil Foto
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
