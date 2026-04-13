@@ -13,7 +13,7 @@ import { auth } from '../firebase';
 import { signOut } from 'firebase/auth';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Loader2, MapPin, Camera, CheckCircle2, XCircle, AlertTriangle, Clock, History, BookOpen, Plus, Home, User, Users, Calendar, Lock, MoreVertical, Bell, LogOut, Send, Settings, Info, ChevronRight, LogIn, LogOut as LogOutIcon, Scan, RefreshCw, Filter, Check, FileText, Image, Trash2, Edit, Search, ChevronLeft, Upload } from 'lucide-react';
+import { Loader2, MapPin, Camera, CheckCircle2, XCircle, AlertTriangle, Clock, History, BookOpen, Plus, Home, User, Users, Calendar, Lock, MoreVertical, Bell, LogOut, Send, Settings, Info, ChevronRight, LogIn, LogOut as LogOutIcon, Scan, RefreshCw, Filter, Check, FileText, Image, Trash2, Edit, Search, ChevronLeft, Upload, Download } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { toast } from 'sonner';
 import { validateLocation, getFaceDescriptor, loadFaceModels, compareFaces, calculateDistance } from '../lib/attendance';
@@ -56,6 +56,13 @@ export function UserDashboard({ profile }: { profile: UserProfile }) {
   const [tenant, setTenant] = useState<Tenant | null>(null);
   const [lastLog, setLastLog] = useState<AttendanceRecord | null>(null);
   const [history, setHistory] = useState<AttendanceRecord[]>([]);
+  const [historyFilterMonth, setHistoryFilterMonth] = useState<number>(new Date().getMonth());
+  const [historyFilterYear, setHistoryFilterYear] = useState<number>(new Date().getFullYear());
+  const [historyFilterStatus, setHistoryFilterStatus] = useState<string>('all');
+  const [historySearchDate, setHistorySearchDate] = useState<string>('');
+  const [showHistoryFilter, setShowHistoryFilter] = useState<boolean>(false);
+  const [selectedHistory, setSelectedHistory] = useState<AttendanceRecord | null>(null);
+  const [historyView, setHistoryView] = useState<'list' | 'detail'>('list');
   const [journals, setJournals] = useState<Journal[]>([]);
   const [holidays, setHolidays] = useState<Holiday[]>([]);
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
@@ -113,7 +120,7 @@ export function UserDashboard({ profile }: { profile: UserProfile }) {
       collection(db, 'attendance'),
       where('user_id', '==', profile.id),
       orderBy('check_in', 'desc'),
-      limit(10)
+      limit(100)
     );
     const unsubLogs = onSnapshot(q, (snapshot) => {
       const logs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as AttendanceRecord));
@@ -520,14 +527,80 @@ export function UserDashboard({ profile }: { profile: UserProfile }) {
   const todayHoliday = holidays.find(h => h.date === todayStr);
   const isWeeklyOff = tenant?.off_days?.includes(new Date().getDay());
   
+  const filteredHistory = history.filter(log => {
+    const logDate = log.check_in?.toDate();
+    if (!logDate) return false;
+    
+    const matchMonth = logDate.getMonth() === historyFilterMonth;
+    const matchYear = logDate.getFullYear() === historyFilterYear;
+    
+    let matchStatus = true;
+    if (historyFilterStatus === 'hadir') matchStatus = log.status === 'valid';
+    if (historyFilterStatus === 'terlambat') matchStatus = log.status === 'suspicious';
+    if (historyFilterStatus === 'alpha') matchStatus = log.status === 'rejected';
+    
+    let matchDate = true;
+    if (historySearchDate) {
+      const searchDateObj = new Date(historySearchDate);
+      matchDate = logDate.getDate() === searchDateObj.getDate() &&
+                  logDate.getMonth() === searchDateObj.getMonth() &&
+                  logDate.getFullYear() === searchDateObj.getFullYear();
+    }
+    
+    return matchMonth && matchYear && matchStatus && matchDate;
+  });
+
+  const totalHadir = filteredHistory.filter(h => h.status === 'valid').length;
+  const totalTerlambat = filteredHistory.filter(h => h.status === 'suspicious').length;
+  const totalAlpha = filteredHistory.filter(h => h.status === 'rejected').length;
+  
+  const getWorkingDays = (year: number, month: number) => {
+    let days = 0;
+    const date = new Date(year, month, 1);
+    while (date.getMonth() === month) {
+      if (date.getDay() !== 0 && date.getDay() !== 6) days++;
+      date.setDate(date.getDate() + 1);
+    }
+    return days;
+  };
+  const hariKerja = getWorkingDays(historyFilterYear, historyFilterMonth);
+
+  const handleExportHistory = () => {
+    if (filteredHistory.length === 0) {
+      toast.error('Tidak ada data untuk diekspor');
+      return;
+    }
+    
+    const headers = ['Tanggal', 'Jam Masuk', 'Jam Keluar', 'Status', 'Keterangan'];
+    const csvData = filteredHistory.map(log => {
+      const date = log.check_in?.toDate().toLocaleDateString('id-ID');
+      const checkIn = log.check_in?.toDate().toLocaleTimeString('id-ID');
+      const checkOut = log.check_out ? log.check_out.toDate().toLocaleTimeString('id-ID') : '-';
+      const status = log.status === 'valid' ? 'Hadir' : log.status === 'rejected' ? 'Alpha' : 'Terlambat';
+      const reason = log.rejection_reason || '-';
+      return [date, checkIn, checkOut, status, reason].join(',');
+    });
+    
+    const csvContent = [headers.join(','), ...csvData].join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.setAttribute('href', url);
+    link.setAttribute('download', `Riwayat_Absensi_${historyFilterMonth + 1}_${historyFilterYear}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    toast.success('Berhasil mengekspor data');
+  };
+
   const weeklyData = [
-    { day: 'Sen', present: history.some(h => h.check_in?.toDate().getDay() === 1) ? 1 : 0 },
-    { day: 'Sel', present: history.some(h => h.check_in?.toDate().getDay() === 2) ? 1 : 0 },
-    { day: 'Rab', present: history.some(h => h.check_in?.toDate().getDay() === 3) ? 1 : 0 },
-    { day: 'Kam', present: history.some(h => h.check_in?.toDate().getDay() === 4) ? 1 : 0 },
-    { day: 'Jum', present: history.some(h => h.check_in?.toDate().getDay() === 5) ? 1 : 0 },
-    { day: 'Sab', present: history.some(h => h.check_in?.toDate().getDay() === 6) ? 1 : 0 },
-    { day: 'Min', present: history.some(h => h.check_in?.toDate().getDay() === 0) ? 1 : 0 },
+    { day: 'Sen', present: filteredHistory.some(h => h.check_in?.toDate().getDay() === 1) ? 1 : 0 },
+    { day: 'Sel', present: filteredHistory.some(h => h.check_in?.toDate().getDay() === 2) ? 1 : 0 },
+    { day: 'Rab', present: filteredHistory.some(h => h.check_in?.toDate().getDay() === 3) ? 1 : 0 },
+    { day: 'Kam', present: filteredHistory.some(h => h.check_in?.toDate().getDay() === 4) ? 1 : 0 },
+    { day: 'Jum', present: filteredHistory.some(h => h.check_in?.toDate().getDay() === 5) ? 1 : 0 },
+    { day: 'Sab', present: filteredHistory.some(h => h.check_in?.toDate().getDay() === 6) ? 1 : 0 },
+    { day: 'Min', present: filteredHistory.some(h => h.check_in?.toDate().getDay() === 0) ? 1 : 0 },
   ];
 
   return (
@@ -1165,90 +1238,318 @@ export function UserDashboard({ profile }: { profile: UserProfile }) {
 
       {activeTab === 'history' && (
         <div className="w-full max-w-md mx-auto space-y-6 px-4 sm:px-0 pb-24">
-          <div className="flex items-center justify-between">
-            <div>
-              <h3 className="text-2xl font-bold text-gray-900 tracking-tight">Riwayat Absensi</h3>
-              <p className="text-xs font-medium text-gray-500 mt-1">Rekapitulasi kehadiran Anda bulan ini</p>
-            </div>
-            <div className="h-10 w-10 rounded-xl bg-blue-50 flex items-center justify-center text-blue-600">
-              <History className="h-5 w-5" />
-            </div>
-          </div>
-
-          {/* Stats Summary */}
-          <div className="grid grid-cols-2 gap-3">
-            <div className="rounded-3xl bg-white border border-gray-100 p-4 shadow-sm">
-              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Total Hadir</p>
-              <div className="flex items-end gap-2">
-                <span className="text-2xl font-bold text-gray-900">{history.filter(h => h.status === 'valid').length}</span>
-                <span className="text-[10px] font-bold text-green-500 mb-1">HARI</span>
-              </div>
-            </div>
-            <div className="rounded-3xl bg-white border border-gray-100 p-4 shadow-sm">
-              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Review</p>
-              <div className="flex items-end gap-2">
-                <span className="text-2xl font-bold text-gray-900">{history.filter(h => h.status === 'pending').length}</span>
-                <span className="text-[10px] font-bold text-orange-500 mb-1">LOG</span>
-              </div>
-            </div>
-          </div>
-          
-          <div className="space-y-3">
-            {history.length === 0 ? (
-              <div className="flex flex-col items-center justify-center rounded-3xl border border-dashed border-gray-200 bg-gray-50/50 py-16 text-center">
-                <div className="h-16 w-16 rounded-full bg-white shadow-sm flex items-center justify-center mb-4">
-                  <History className="h-8 w-8 text-gray-300" />
+          {historyView === 'list' ? (
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="space-y-6"
+            >
+              {/* Header */}
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-2xl font-bold text-gray-900 tracking-tight">Riwayat Absensi</h3>
+                  <p className="text-xs font-medium text-gray-500 mt-1">
+                    {new Date(historyFilterYear, historyFilterMonth).toLocaleDateString('id-ID', { month: 'long', year: 'numeric' })}
+                  </p>
                 </div>
-                <p className="text-sm font-bold text-gray-900">Belum Ada Riwayat</p>
+                <div className="flex gap-2">
+                  <button 
+                    onClick={() => setShowHistoryFilter(!showHistoryFilter)}
+                    className={`h-10 w-10 rounded-xl flex items-center justify-center transition-colors ${showHistoryFilter ? 'bg-green-100 text-green-600' : 'bg-gray-50 text-gray-600 hover:bg-gray-100'}`}
+                  >
+                    <Filter className="h-5 w-5" />
+                  </button>
+                  <button 
+                    onClick={handleExportHistory}
+                    className="h-10 w-10 rounded-xl bg-gray-50 flex items-center justify-center text-gray-600 hover:bg-gray-100 transition-colors"
+                  >
+                    <Download className="h-5 w-5" />
+                  </button>
+                </div>
               </div>
-            ) : (
-              history.map((log, index) => (
-                <motion.div 
-                  key={log.id}
-                  initial={{ opacity: 0, x: -10 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: index * 0.03 }}
-                  className="flex items-center justify-between rounded-3xl border border-gray-100 bg-white p-4 shadow-sm transition-all hover:shadow-md"
+
+              {/* Filter Card */}
+              <AnimatePresence>
+                {showHistoryFilter && (
+                  <motion.div
+                    initial={{ height: 0, opacity: 0 }}
+                    animate={{ height: 'auto', opacity: 1 }}
+                    exit={{ height: 0, opacity: 0 }}
+                    className="overflow-hidden"
+                  >
+                    <Card className="border-none shadow-xl shadow-gray-100/50 rounded-[2rem] bg-white p-4 space-y-4">
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-1.5">
+                          <Label className="text-[9px] font-black uppercase tracking-widest text-gray-400 ml-1">Bulan</Label>
+                          <Select value={historyFilterMonth.toString()} onValueChange={(v) => setHistoryFilterMonth(parseInt(v))}>
+                            <SelectTrigger className="h-12 rounded-xl bg-gray-50 border-none">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent className="rounded-xl">
+                              {Array.from({ length: 12 }).map((_, i) => (
+                                <SelectItem key={i} value={i.toString()} className="rounded-lg">
+                                  {new Date(2000, i).toLocaleDateString('id-ID', { month: 'long' })}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="space-y-1.5">
+                          <Label className="text-[9px] font-black uppercase tracking-widest text-gray-400 ml-1">Tahun</Label>
+                          <Select value={historyFilterYear.toString()} onValueChange={(v) => setHistoryFilterYear(parseInt(v))}>
+                            <SelectTrigger className="h-12 rounded-xl bg-gray-50 border-none">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent className="rounded-xl">
+                              {[2024, 2025, 2026].map((y) => (
+                                <SelectItem key={y} value={y.toString()} className="rounded-lg">{y}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
+                      
+                      <div className="space-y-1.5">
+                        <Label className="text-[9px] font-black uppercase tracking-widest text-gray-400 ml-1">Status</Label>
+                        <Select value={historyFilterStatus} onValueChange={setHistoryFilterStatus}>
+                          <SelectTrigger className="h-12 rounded-xl bg-gray-50 border-none">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent className="rounded-xl">
+                            <SelectItem value="all" className="rounded-lg">Semua Status</SelectItem>
+                            <SelectItem value="hadir" className="rounded-lg">Hadir</SelectItem>
+                            <SelectItem value="terlambat" className="rounded-lg">Terlambat</SelectItem>
+                            <SelectItem value="alpha" className="rounded-lg">Tidak Hadir</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <div className="space-y-1.5">
+                        <Label className="text-[9px] font-black uppercase tracking-widest text-gray-400 ml-1">Cari Tanggal</Label>
+                        <div className="relative">
+                          <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                          <Input 
+                            type="date"
+                            className="h-12 pl-10 rounded-xl bg-gray-50 border-none w-full"
+                            value={historySearchDate}
+                            onChange={(e) => setHistorySearchDate(e.target.value)}
+                          />
+                        </div>
+                      </div>
+                    </Card>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+
+              {/* Summary Statistics */}
+              <div className="grid grid-cols-2 gap-3">
+                <div className="rounded-3xl bg-white border border-gray-100 p-4 shadow-sm flex flex-col justify-between">
+                  <div className="flex items-center gap-2 mb-2">
+                    <div className="h-2 w-2 rounded-full bg-green-500" />
+                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Total Hadir</p>
+                  </div>
+                  <div className="flex items-end gap-1">
+                    <span className="text-3xl font-black text-gray-900 leading-none">{totalHadir}</span>
+                    <span className="text-[10px] font-bold text-gray-500 mb-1">HARI</span>
+                  </div>
+                </div>
+                <div className="rounded-3xl bg-white border border-gray-100 p-4 shadow-sm flex flex-col justify-between">
+                  <div className="flex items-center gap-2 mb-2">
+                    <div className="h-2 w-2 rounded-full bg-yellow-500" />
+                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Terlambat</p>
+                  </div>
+                  <div className="flex items-end gap-1">
+                    <span className="text-3xl font-black text-gray-900 leading-none">{totalTerlambat}</span>
+                    <span className="text-[10px] font-bold text-gray-500 mb-1">HARI</span>
+                  </div>
+                </div>
+                <div className="rounded-3xl bg-white border border-gray-100 p-4 shadow-sm flex flex-col justify-between">
+                  <div className="flex items-center gap-2 mb-2">
+                    <div className="h-2 w-2 rounded-full bg-red-500" />
+                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Tidak Hadir</p>
+                  </div>
+                  <div className="flex items-end gap-1">
+                    <span className="text-3xl font-black text-gray-900 leading-none">{totalAlpha}</span>
+                    <span className="text-[10px] font-bold text-gray-500 mb-1">HARI</span>
+                  </div>
+                </div>
+                <div className="rounded-3xl bg-white border border-gray-100 p-4 shadow-sm flex flex-col justify-between">
+                  <div className="flex items-center gap-2 mb-2">
+                    <div className="h-2 w-2 rounded-full bg-blue-500" />
+                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Hari Kerja</p>
+                  </div>
+                  <div className="flex items-end gap-1">
+                    <span className="text-3xl font-black text-gray-900 leading-none">{hariKerja}</span>
+                    <span className="text-[10px] font-bold text-gray-500 mb-1">HARI</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Visual Analytics */}
+              <Card className="border-none shadow-xl shadow-gray-100/50 rounded-[2rem] bg-white p-4">
+                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-4 ml-1">Grafik Kehadiran</p>
+                <WeeklyChart data={weeklyData} />
+              </Card>
+
+              {/* Daily Attendance List */}
+              <div className="space-y-3">
+                {filteredHistory.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center rounded-[2rem] border border-dashed border-gray-200 bg-gray-50/50 py-16 text-center">
+                    <div className="h-16 w-16 rounded-full bg-white shadow-sm flex items-center justify-center mb-4">
+                      <History className="h-8 w-8 text-gray-300" />
+                    </div>
+                    <p className="text-sm font-bold text-gray-900">Belum ada riwayat absensi</p>
+                    <p className="text-xs text-gray-500 mt-1">Data kehadiran Anda akan muncul di sini</p>
+                  </div>
+                ) : (
+                  filteredHistory.map((log, index) => (
+                    <motion.div 
+                      key={log.id}
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: index * 0.05 }}
+                      onClick={() => {
+                        setSelectedHistory(log);
+                        setHistoryView('detail');
+                      }}
+                      className="group relative overflow-hidden rounded-[2rem] border border-gray-50 bg-white p-4 shadow-xl shadow-gray-100/30 transition-all hover:shadow-2xl hover:shadow-green-100/20 hover:border-green-100 cursor-pointer active:scale-[0.98]"
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-4">
+                          <div className="flex flex-col items-center justify-center w-14 h-14 rounded-2xl bg-gray-50 text-gray-900">
+                            <span className="text-xl font-black leading-none">{log.check_in?.toDate().getDate()}</span>
+                            <span className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mt-1">
+                              {log.check_in?.toDate().toLocaleDateString('id-ID', { weekday: 'short' })}
+                            </span>
+                          </div>
+                          <div>
+                            <div className="flex items-center gap-2 mb-1.5">
+                              <Badge variant="secondary" className={`rounded-full px-2 py-0.5 text-[9px] font-bold uppercase tracking-widest border ${
+                                log.status === 'valid' ? 'bg-green-50 text-green-700 border-green-100' : 
+                                log.status === 'rejected' ? 'bg-red-50 text-red-700 border-red-100' : 
+                                'bg-yellow-50 text-yellow-700 border-yellow-100'
+                              }`}>
+                                {log.status === 'valid' ? 'Hadir' : log.status === 'rejected' ? 'Alpha' : 'Terlambat'}
+                              </Badge>
+                            </div>
+                            <div className="flex items-center gap-3">
+                              <div className="flex items-center gap-1.5 text-xs font-bold text-gray-600">
+                                <LogIn className="h-3.5 w-3.5 text-green-500" />
+                                {log.check_in?.toDate().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}
+                              </div>
+                              <div className="flex items-center gap-1.5 text-xs font-bold text-gray-600">
+                                <LogOutIcon className="h-3.5 w-3.5 text-orange-500" />
+                                {log.check_out ? log.check_out.toDate().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) : '--:--'}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                        <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full ${
+                          log.status === 'valid' ? 'bg-green-50 text-green-600' : 
+                          log.status === 'rejected' ? 'bg-red-50 text-red-600' : 
+                          'bg-yellow-50 text-yellow-600'
+                        }`}>
+                          {log.status === 'valid' ? <CheckCircle2 className="h-5 w-5" /> : 
+                           log.status === 'rejected' ? <XCircle className="h-5 w-5" /> : 
+                           <AlertTriangle className="h-5 w-5" />}
+                        </div>
+                      </div>
+                    </motion.div>
+                  ))
+                )}
+              </div>
+            </motion.div>
+          ) : selectedHistory && (
+            <motion.div
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -20 }}
+              className="space-y-6"
+            >
+              <div className="flex items-center gap-4">
+                <button 
+                  onClick={() => setHistoryView('list')}
+                  className="h-10 w-10 rounded-xl bg-white border border-gray-100 shadow-sm flex items-center justify-center text-gray-600 hover:bg-gray-50 transition-colors"
                 >
-                  <div className="flex items-center gap-4">
-                    <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl ${
-                      log.status === 'valid' ? 'bg-green-50 text-green-600' : 
-                      log.status === 'rejected' ? 'bg-red-50 text-red-600' : 
-                      'bg-orange-50 text-orange-600'
-                    }`}>
-                      {log.status === 'valid' ? <CheckCircle2 className="h-6 w-6" /> : 
-                       log.status === 'rejected' ? <XCircle className="h-6 w-6" /> : 
-                       <AlertTriangle className="h-6 w-6" />}
+                  <ChevronLeft className="h-5 w-5" />
+                </button>
+                <div>
+                  <h3 className="text-xl font-bold text-gray-900 tracking-tight">Detail Absensi</h3>
+                  <p className="text-xs font-medium text-gray-500">
+                    {selectedHistory.check_in?.toDate().toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
+                  </p>
+                </div>
+              </div>
+
+              <Card className="border-none shadow-xl shadow-gray-100/50 rounded-[2rem] bg-white overflow-hidden">
+                <div className={`p-4 text-white ${
+                  selectedHistory.status === 'valid' ? 'bg-gradient-to-br from-green-600 to-emerald-500' : 
+                  selectedHistory.status === 'rejected' ? 'bg-gradient-to-br from-red-600 to-rose-500' : 
+                  'bg-gradient-to-br from-yellow-500 to-orange-400'
+                }`}>
+                  <div className="flex items-center justify-between mb-4">
+                    <Badge className="bg-white/20 text-white border-none backdrop-blur-md px-3 py-1 rounded-full text-[9px] font-black tracking-widest uppercase">
+                      {selectedHistory.status === 'valid' ? 'Hadir' : selectedHistory.status === 'rejected' ? 'Alpha' : 'Terlambat'}
+                    </Badge>
+                    {selectedHistory.status === 'valid' ? <CheckCircle2 className="h-6 w-6 text-white/80" /> : 
+                     selectedHistory.status === 'rejected' ? <XCircle className="h-6 w-6 text-white/80" /> : 
+                     <AlertTriangle className="h-6 w-6 text-white/80" />}
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <p className="text-white/70 text-[10px] font-bold uppercase tracking-widest mb-1">Jam Masuk</p>
+                      <p className="text-2xl font-black">{selectedHistory.check_in?.toDate().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}</p>
                     </div>
                     <div>
-                      <div className="text-sm font-bold text-gray-900">
-                        {log.check_in?.toDate().toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'short' })}
+                      <p className="text-white/70 text-[10px] font-bold uppercase tracking-widest mb-1">Jam Keluar</p>
+                      <p className="text-2xl font-black">{selectedHistory.check_out ? selectedHistory.check_out.toDate().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) : '--:--'}</p>
+                    </div>
+                  </div>
+                </div>
+                
+                <div className="p-4 space-y-6">
+                  <div className="space-y-2">
+                    <Label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1">Lokasi Absensi</Label>
+                    <div className="bg-gray-50 rounded-2xl p-4 border border-gray-100 flex items-start gap-3">
+                      <div className={`mt-0.5 h-8 w-8 rounded-full flex items-center justify-center shrink-0 ${
+                        tenant && calculateDistance(selectedHistory.lat, selectedHistory.lng, tenant.lat, tenant.lng) <= tenant.radius
+                          ? 'bg-blue-100 text-blue-600'
+                          : 'bg-red-100 text-red-600'
+                      }`}>
+                        <MapPin className="h-4 w-4" />
                       </div>
-                      <div className="mt-1 flex items-center gap-3">
-                        <div className="flex items-center gap-1 text-[10px] font-bold text-gray-500 bg-gray-50 px-2 py-0.5 rounded-md">
-                          <LogIn className="h-2.5 w-2.5" />
-                          {log.check_in?.toDate().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}
-                        </div>
-                        <div className="flex items-center gap-1 text-[10px] font-bold text-gray-500 bg-gray-50 px-2 py-0.5 rounded-md">
-                          <LogOutIcon className="h-2.5 w-2.5" />
-                          {log.check_out ? log.check_out.toDate().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) : '--:--'}
-                        </div>
+                      <div>
+                        <p className="text-sm font-bold text-gray-900">
+                          {tenant && calculateDistance(selectedHistory.lat, selectedHistory.lng, tenant.lat, tenant.lng) <= tenant.radius
+                            ? 'Dalam Area Kantor'
+                            : 'Di Luar Area Kantor'}
+                        </p>
+                        <p className="text-xs text-gray-500 mt-0.5">Lat: {selectedHistory.lat.toFixed(6)}, Lng: {selectedHistory.lng.toFixed(6)}</p>
                       </div>
                     </div>
                   </div>
-                  <div className="text-right">
-                    <Badge variant="secondary" className={`rounded-full px-2.5 py-0.5 text-[8px] font-bold uppercase tracking-widest border ${
-                      log.status === 'valid' ? 'bg-green-50 text-green-700 border-green-100' : 
-                      log.status === 'rejected' ? 'bg-red-50 text-red-700 border-red-100' : 
-                      'bg-orange-50 text-orange-700 border-orange-100'
-                    }`}>
-                      {log.status === 'valid' ? 'Valid' : log.status === 'rejected' ? 'Ditolak' : 'Review'}
-                    </Badge>
-                  </div>
-                </motion.div>
-              ))
-            )}
-          </div>
+
+                  {selectedHistory.photo_url && (
+                    <div className="space-y-2">
+                      <Label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1">Foto Selfie</Label>
+                      <div className="relative aspect-square w-full max-w-[200px] rounded-2xl overflow-hidden border border-gray-100 shadow-lg mx-auto">
+                        <img src={selectedHistory.photo_url} alt="Selfie Absensi" className="h-full w-full object-cover" />
+                      </div>
+                    </div>
+                  )}
+
+                  {selectedHistory.rejection_reason && (
+                    <div className="space-y-2">
+                      <Label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1">Keterangan</Label>
+                      <div className="bg-red-50 rounded-2xl p-4 border border-red-100">
+                        <p className="text-sm text-red-800 font-medium">{selectedHistory.rejection_reason}</p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </Card>
+            </motion.div>
+          )}
         </div>
       )}
 
