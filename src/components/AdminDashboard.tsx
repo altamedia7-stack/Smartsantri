@@ -907,37 +907,25 @@ export function AdminDashboard({ profile }: { profile: UserProfile }) {
     }
   };
 
-  const handleSaveOrgSettings = async () => {
+  const handleSaveAllSettings = async () => {
     if (!tenant) return;
     setIsSavingOrg(true);
-    try {
-      await updateDoc(doc(db, 'tenants', tenant.id), {
-        name: tenantSettings.name,
-        is_journal_enabled: tenantSettings.is_journal_enabled
-      });
-      toast.success('Pengaturan organisasi berhasil disimpan');
-    } catch (error) {
-      toast.error('Gagal menyimpan pengaturan organisasi');
-    } finally {
-      setIsSavingOrg(false);
-    }
-  };
-
-  const handleSaveWorkHoursSettings = async () => {
-    if (!tenant) return;
     setIsSavingWorkHours(true);
     try {
       await updateDoc(doc(db, 'tenants', tenant.id), {
+        name: tenantSettings.name,
+        is_journal_enabled: tenantSettings.is_journal_enabled,
         check_in_time: tenantSettings.check_in_time,
         check_in_end_time: tenantSettings.check_in_end_time,
         check_out_time: tenantSettings.check_out_time,
         check_out_end_time: tenantSettings.check_out_end_time,
         off_days: tenantSettings.off_days
       });
-      toast.success('Pengaturan jam kerja dan hari libur mingguan berhasil disimpan');
+      toast.success('Semua pengaturan berhasil disimpan');
     } catch (error) {
       toast.error('Gagal menyimpan pengaturan');
     } finally {
+      setIsSavingOrg(false);
       setIsSavingWorkHours(false);
     }
   };
@@ -1918,7 +1906,7 @@ export function AdminDashboard({ profile }: { profile: UserProfile }) {
                 </div>
                 
                 <Button 
-                  onClick={handleSaveOrgSettings} 
+                  onClick={handleSaveAllSettings} 
                   className="w-full sm:w-auto bg-blue-600 hover:bg-blue-700"
                   disabled={isSavingOrg}
                 >
@@ -1998,7 +1986,7 @@ export function AdminDashboard({ profile }: { profile: UserProfile }) {
                 </div>
                 
                 <Button 
-                  onClick={handleSaveWorkHoursSettings} 
+                  onClick={handleSaveAllSettings} 
                   className="w-full sm:w-auto bg-blue-600 hover:bg-blue-700"
                   disabled={isSavingWorkHours}
                 >
@@ -2043,7 +2031,7 @@ export function AdminDashboard({ profile }: { profile: UserProfile }) {
                 </div>
                 
                 <Button 
-                  onClick={handleSaveWorkHoursSettings} 
+                  onClick={handleSaveAllSettings} 
                   className="w-full sm:w-auto bg-blue-600 hover:bg-blue-700"
                   disabled={isSavingWorkHours}
                 >
