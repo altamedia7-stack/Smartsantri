@@ -389,13 +389,15 @@ export function UserDashboard({ profile }: { profile: UserProfile }) {
       return;
     }
     
-    // Check if journal is submitted for this attendance
-    const hasJournal = journals.some(j => j.attendance_id === lastLog.id);
-    if (!hasJournal) {
-      toast.error('Anda harus mengirimkan jurnal mengajar sebelum check-out.');
-      setActiveTab('journal');
-      setJournalView('form');
-      return;
+    // Check if journal is submitted for this attendance (only if journal feature is enabled)
+    if (tenant?.is_journal_enabled !== false) {
+      const hasJournal = journals.some(j => j.attendance_id === lastLog.id);
+      if (!hasJournal) {
+        toast.error('Anda harus mengirimkan jurnal mengajar sebelum check-out.');
+        setActiveTab('journal');
+        setJournalView('form');
+        return;
+      }
     }
 
     setIsProcessing(true);
@@ -1873,15 +1875,19 @@ export function UserDashboard({ profile }: { profile: UserProfile }) {
             <span className="text-[8px] font-black mt-1 uppercase tracking-widest">Home</span>
           </button>
           
-          {tenant?.is_journal_enabled !== false && (
-            <button 
-              onClick={() => setActiveTab('journal')}
-              className={`flex flex-col items-center justify-center w-16 h-16 rounded-2xl transition-all ${activeTab === 'journal' ? 'text-green-600 bg-green-50' : 'text-gray-400'}`}
-            >
-              <BookOpen className="h-6 w-6" />
-              <span className="text-[8px] font-black mt-1 uppercase tracking-widest">Jurnal</span>
-            </button>
-          )}
+          <button 
+            onClick={() => {
+              if (tenant?.is_journal_enabled === false) {
+                toast.error('Fitur Jurnal Guru sedang dinonaktifkan oleh Admin');
+              } else {
+                setActiveTab('journal');
+              }
+            }}
+            className={`flex flex-col items-center justify-center w-16 h-16 rounded-2xl transition-all ${activeTab === 'journal' ? 'text-green-600 bg-green-50' : 'text-gray-400'} ${tenant?.is_journal_enabled === false ? 'opacity-50' : ''}`}
+          >
+            <BookOpen className="h-6 w-6" />
+            <span className="text-[8px] font-black mt-1 uppercase tracking-widest">Jurnal</span>
+          </button>
 
           {/* Central Floating Button */}
           <div className="relative -top-8">
