@@ -238,7 +238,8 @@ export function UserDashboard({ profile }: { profile: UserProfile }) {
       toast.success('Profil berhasil diperbarui');
       setIsEditProfileOpen(false);
     } catch (error) {
-      toast.error('Gagal memperbarui profil');
+      console.error(error);
+      toast.error('Gagal memperbarui profil: ' + (error instanceof Error ? error.message : String(error)));
     } finally {
       setIsUpdatingProfile(false);
     }
@@ -689,7 +690,7 @@ export function UserDashboard({ profile }: { profile: UserProfile }) {
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-4">
                 <div className="relative">
-                  <div className="h-16 w-16 overflow-hidden rounded-full border-4 border-white/30 bg-white/10 shadow-xl backdrop-blur-md">
+                  <div className="h-16 w-16 overflow-hidden rounded-full border-4 border-white/30 bg-card text-card-foreground dark:border-gray-800/10 shadow-xl backdrop-blur-md">
                     {profile.face_image_url ? (
                       <img src={profile.face_image_url} alt="Profile" className="h-full w-full object-cover" />
                     ) : (
@@ -767,7 +768,7 @@ export function UserDashboard({ profile }: { profile: UserProfile }) {
                 </AnimatePresence>
 
                 <div className="text-center space-y-1 mb-8">
-                  <h2 className="text-5xl font-black tracking-tighter text-gray-900">
+                  <h2 className="text-5xl font-black tracking-tighter text-foreground">
                     {new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                   </h2>
                   <p className="text-sm font-bold text-gray-400 uppercase tracking-widest">
@@ -775,9 +776,9 @@ export function UserDashboard({ profile }: { profile: UserProfile }) {
                   </p>
                 </div>
 
-                <div className="flex items-center gap-2 bg-gray-50 px-4 py-2 rounded-2xl border border-gray-100">
+                <div className="flex items-center gap-2 bg-muted px-4 py-2 rounded-2xl border border-gray-100">
                   <Clock className="h-4 w-4 text-blue-500" />
-                  <span className="text-xs font-bold text-gray-600">
+                  <span className="text-xs font-bold text-muted-foreground">
                     {isCheckedIn 
                       ? `Check-out: ${tenant?.check_out_time || '16:00'}`
                       : `Check-in: ${tenant?.check_in_time || '07:00'}`
@@ -1015,7 +1016,7 @@ export function UserDashboard({ profile }: { profile: UserProfile }) {
                             </h4>
                           </div>
                           <Badge className={`rounded-full px-3 py-1 text-[8px] font-black uppercase tracking-[0.15em] border-none shadow-sm ${
-                            journal.is_draft ? 'bg-gray-100 text-gray-500' : 'bg-green-500 text-white'
+                            journal.is_draft ? 'bg-gray-100 text-muted-foreground' : 'bg-green-500 text-white'
                           }`}>
                             {journal.is_draft ? 'Draft' : 'Terkirim'}
                           </Badge>
