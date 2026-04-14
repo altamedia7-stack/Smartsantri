@@ -416,12 +416,12 @@ export function UserDashboard({ profile }: { profile: UserProfile }) {
       let reason = '';
       let isLate = false;
 
-      if (tenant.check_in_time) {
-        const [h, m] = tenant.check_in_time.split(':').map(Number);
+      if (tenant.check_in_end_time) {
+        const [h, m] = tenant.check_in_end_time.split(':').map(Number);
         const now = new Date();
         const target = new Date();
         target.setHours(h, m, 0);
-        // Consider late if more than 1 minute past start time
+        // Consider late if more than 1 minute past end time
         if (now.getTime() > target.getTime() + 60000) {
           isLate = true;
         }
