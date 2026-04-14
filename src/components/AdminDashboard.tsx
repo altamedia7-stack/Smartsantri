@@ -152,6 +152,10 @@ export function AdminDashboard({ profile }: { profile: UserProfile }) {
     const unsubTenant = onSnapshot(doc(db, 'tenants', profile.tenant_id), (docSnap) => {
       if (docSnap.exists()) {
         const data = docSnap.data() as Tenant;
+        console.log("AdminDashboard: Loaded Tenant Data:", {
+          id: docSnap.id,
+          name: data.name
+        });
         setTenant({ id: docSnap.id, ...data });
         setTenantSettings({
           name: data.name || '',

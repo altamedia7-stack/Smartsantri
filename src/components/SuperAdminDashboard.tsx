@@ -132,13 +132,20 @@ export function SuperAdminDashboard() {
 
     setIsSubmitting(true);
     try {
+      const adminEmail = newAdmin.email.includes('@') ? newAdmin.email : `${newAdmin.email}@attendance.local`;
+      
+      console.log("Creating Admin for Tenant:", {
+        id: selectedTenant.id,
+        name: selectedTenant.name
+      });
+
       // 1. Create Auth User
-      const uid = await createAuthUser(newAdmin.email, newAdmin.password);
+      const uid = await createAuthUser(adminEmail, newAdmin.password);
 
       // 2. Create Firestore Profile
       await setDoc(doc(db, 'users', uid), {
         name: newAdmin.name,
-        email: newAdmin.email,
+        email: adminEmail,
         role: 'ADMIN',
         tenant_id: selectedTenant.id,
         createdAt: serverTimestamp()
@@ -335,6 +342,7 @@ export function SuperAdminDashboard() {
                         size="icon" 
                         onClick={() => {
                           setSelectedTenant(tenant);
+                          setNewAdmin({ name: '', email: '', password: '' });
                           setIsManageAdminOpen(true);
                         }}
                         className="text-blue-600 hover:text-blue-700"
