@@ -720,6 +720,21 @@ export function UserDashboard({ profile }: { profile: UserProfile }) {
       return;
     }
     
+    const monthNames = ["Januari", "Februari", "Maret", "April", "Mei", "Juni",
+      "Juli", "Agustus", "September", "Oktober", "November", "Desember"
+    ];
+    const periode = `${monthNames[historyFilterMonth]} ${historyFilterYear}`;
+    const dicetakPada = new Date().toLocaleString('id-ID');
+
+    const headerInfo = [
+      `Laporan Kehadiran: ${profile.name}`,
+      `Organisasi: ${tenant?.name || '-'}`,
+      `Email: ${profile.email}`,
+      `Periode: ${periode}`,
+      `Dicetak pada: ${dicetakPada}`,
+      '' // Baris kosong sebelum tabel
+    ].join('\n');
+
     const headers = ['Tanggal', 'Jam Masuk', 'Jam Keluar', 'Status', 'Keterangan'];
     const csvData = filteredHistory.map(log => {
       const date = log.check_in?.toDate().toLocaleDateString('id-ID');
@@ -732,12 +747,12 @@ export function UserDashboard({ profile }: { profile: UserProfile }) {
       return [date, checkIn, checkOut, status, reason].join(',');
     });
     
-    const csvContent = [headers.join(','), ...csvData].join('\n');
+    const csvContent = headerInfo + '\n' + [headers.join(','), ...csvData].join('\n');
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.setAttribute('href', url);
-    link.setAttribute('download', `Riwayat_Absensi_${historyFilterMonth + 1}_${historyFilterYear}.csv`);
+    link.setAttribute('download', `Laporan_Kehadiran_${profile.name.replace(/\s+/g, '_')}_${historyFilterMonth + 1}_${historyFilterYear}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);

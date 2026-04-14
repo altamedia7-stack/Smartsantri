@@ -695,7 +695,17 @@ export function AdminDashboard({ profile }: { profile: UserProfile }) {
 
     const ws = XLSX.utils.json_to_sheet(data);
     const csv = XLSX.utils.sheet_to_csv(ws);
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    
+    const headerInfo = [
+      `Laporan Kehadiran: ${exportUserId === 'all' ? 'Semua Karyawan' : users.find(u => u.id === exportUserId)?.name || 'User'}`,
+      `Organisasi: ${tenant?.name || '-'}`,
+      `Periode: ${exportStartDate} s/d ${exportEndDate}`,
+      `Dicetak pada: ${new Date().toLocaleString('id-ID')}`,
+      ''
+    ].join('\n');
+
+    const csvContent = headerInfo + '\n' + csv;
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement("a");
     const url = URL.createObjectURL(blob);
     link.setAttribute("href", url);
