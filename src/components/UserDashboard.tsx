@@ -104,6 +104,17 @@ export function UserDashboard({ profile }: { profile: UserProfile }) {
   const [unreadNotifications, setUnreadNotifications] = useState(2);
   const videoRef = useRef<HTMLVideoElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const isProcessingRef = useRef(false);
+  const isCameraOpenRef = useRef(false);
+
+  // Sync refs with state
+  useEffect(() => {
+    isProcessingRef.current = isProcessing;
+  }, [isProcessing]);
+
+  useEffect(() => {
+    isCameraOpenRef.current = isCameraOpen;
+  }, [isCameraOpen]);
 
   const isTimeInRange = (startTime?: string, endTime?: string) => {
     if (!startTime || !endTime) return true;
@@ -276,6 +287,7 @@ export function UserDashboard({ profile }: { profile: UserProfile }) {
   const openVerificationCamera = async (mode: 'check-in' | 'check-out') => {
     setCameraMode(mode);
     setIsCameraOpen(true);
+    isCameraOpenRef.current = true;
     setFaceStatus('detecting');
     setFaceDetectionCount(0);
     setAutoVerifyCountdown(null);
@@ -287,22 +299,28 @@ export function UserDashboard({ profile }: { profile: UserProfile }) {
         // Face detection loop
         let consecutiveDetections = 0;
         const interval = setInterval(async () => {
-          if (!videoRef.current || !isCameraOpen) {
+          // Use refs to check current state
+          if (!videoRef.current || !isCameraOpenRef.current) {
             clearInterval(interval);
             return;
           }
+          
           const descriptor = await getFaceDescriptor(videoRef.current);
           const detected = !!descriptor;
           setFaceStatus(detected ? 'detected' : 'not_detected');
 
           if (detected) {
             consecutiveDetections++;
-            // If detected for 3 consecutive intervals (~1.5s), start auto-verify
-            if (consecutiveDetections >= 3 && !isProcessing) {
+            // If detected for 2 consecutive intervals (~1s), start auto-verify
+            if (consecutiveDetections >= 2 && !isProcessingRef.current) {
               clearInterval(interval);
-              setAutoVerifyCountdown(0); // Trigger immediate or short delay
-              if (mode === 'check-in') processCheckIn();
-              else processCheckOut();
+              // Small delay to show "Verifying" status
+              setTimeout(() => {
+                if (isCameraOpenRef.current && !isProcessingRef.current) {
+                  if (mode === 'check-in') processCheckIn();
+                  else processCheckOut();
+                }
+              }, 300);
             }
           } else {
             consecutiveDetections = 0;
