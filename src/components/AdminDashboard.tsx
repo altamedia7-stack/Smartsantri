@@ -1515,7 +1515,8 @@ export function AdminDashboard({ profile }: { profile: UserProfile }) {
                   <TableHeader>
                     <TableRow>
                       <TableHead>Pengguna</TableHead>
-                      <TableHead>Waktu</TableHead>
+                      <TableHead>Check-in</TableHead>
+                      <TableHead>Check-out</TableHead>
                       <TableHead>Status</TableHead>
                       <TableHead>Validasi</TableHead>
                     </TableRow>
@@ -1527,25 +1528,53 @@ export function AdminDashboard({ profile }: { profile: UserProfile }) {
                           {users.find(u => u.id === log.user_id)?.name || 'Tidak Diketahui'}
                         </TableCell>
                         <TableCell className="text-xs">
-                          {log.check_in?.toDate().toLocaleTimeString()}
+                          {log.check_in?.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        </TableCell>
+                        <TableCell className="text-xs">
+                          {log.check_out ? log.check_out.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '-'}
                         </TableCell>
                         <TableCell>
                           <div className="flex flex-col gap-1">
-                            <Badge variant={log.status === 'valid' ? 'default' : log.status === 'rejected' ? 'destructive' : 'secondary'}
-                              className={log.status === 'valid' ? 'bg-green-100 text-green-700 hover:bg-green-100' : ''}>
-                              {log.status === 'valid' ? 'Valid' : log.status === 'rejected' ? 'Ditolak' : 'Mencurigakan'}
-                            </Badge>
-                            {log.status !== 'valid' && log.rejection_reason && (
+                            <div className="flex items-center gap-1">
+                              <span className="text-[9px] font-bold text-gray-400 uppercase">IN:</span>
+                              <Badge variant={log.status === 'valid' ? 'default' : log.status === 'rejected' ? 'destructive' : 'secondary'}
+                                className={log.status === 'valid' ? 'bg-green-100 text-green-700 hover:bg-green-100 text-[9px] px-1.5 py-0' : 'text-[9px] px-1.5 py-0'}>
+                                {log.status === 'valid' ? 'Valid' : log.status === 'rejected' ? 'Ditolak' : 'Mencurigakan'}
+                              </Badge>
+                            </div>
+                            {log.check_out && (
+                              <div className="flex items-center gap-1">
+                                <span className="text-[9px] font-bold text-gray-400 uppercase">OUT:</span>
+                                <Badge variant={log.check_out_status === 'valid' ? 'default' : log.check_out_status === 'rejected' ? 'destructive' : 'secondary'}
+                                  className={log.check_out_status === 'valid' ? 'bg-green-100 text-green-700 hover:bg-green-100 text-[9px] px-1.5 py-0' : 'text-[9px] px-1.5 py-0'}>
+                                  {log.check_out_status === 'valid' ? 'Valid' : log.check_out_status === 'rejected' ? 'Ditolak' : 'Mencurigakan'}
+                                </Badge>
+                              </div>
+                            )}
+                            {(log.status !== 'valid' && log.rejection_reason) && (
                               <span className="text-[10px] text-red-500 italic max-w-[120px] truncate" title={log.rejection_reason}>
-                                {log.rejection_reason}
+                                IN: {log.rejection_reason}
+                              </span>
+                            )}
+                            {(log.check_out_status !== 'valid' && log.check_out_reason) && (
+                              <span className="text-[10px] text-red-500 italic max-w-[120px] truncate" title={log.check_out_reason}>
+                                OUT: {log.check_out_reason}
                               </span>
                             )}
                           </div>
                         </TableCell>
                         <TableCell>
-                          <div className="flex items-center gap-1 text-[10px] text-gray-500">
-                            <MapPin className="h-3 w-3" />
-                            {log.rejection_reason || 'Terverifikasi'}
+                          <div className="flex flex-col gap-1">
+                            <div className="flex items-center gap-1 text-[10px] text-gray-500">
+                              <MapPin className="h-3 w-3" />
+                              IN: {log.rejection_reason || 'Terverifikasi'}
+                            </div>
+                            {log.check_out && (
+                              <div className="flex items-center gap-1 text-[10px] text-gray-500">
+                                <MapPin className="h-3 w-3" />
+                                OUT: {log.check_out_reason || 'Terverifikasi'}
+                              </div>
+                            )}
                           </div>
                         </TableCell>
                       </TableRow>

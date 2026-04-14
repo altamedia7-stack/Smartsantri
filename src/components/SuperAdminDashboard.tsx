@@ -136,20 +136,27 @@ export function SuperAdminDashboard() {
       
       console.log("Creating Admin for Tenant:", {
         id: selectedTenant.id,
-        name: selectedTenant.name
+        name: selectedTenant.name,
+        newAdminEmail: adminEmail,
+        newAdminName: newAdmin.name
       });
 
       // 1. Create Auth User
       const uid = await createAuthUser(adminEmail, newAdmin.password);
+      console.log("Auth User Created with UID:", uid);
 
       // 2. Create Firestore Profile
-      await setDoc(doc(db, 'users', uid), {
+      const profileData = {
         name: newAdmin.name,
         email: adminEmail,
         role: 'ADMIN',
         tenant_id: selectedTenant.id,
         createdAt: serverTimestamp()
-      });
+      };
+      console.log("Saving Firestore Profile:", profileData);
+      
+      await setDoc(doc(db, 'users', uid), profileData);
+      console.log("Firestore Profile Saved Successfully");
 
       setIsManageAdminOpen(false);
       setNewAdmin({ name: '', email: '', password: '' });

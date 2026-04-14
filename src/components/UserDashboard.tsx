@@ -78,6 +78,7 @@ export function UserDashboard({ profile }: { profile: UserProfile }) {
   const [journalFilter, setJournalFilter] = useState({ subject: 'all', class_name: 'all', status: 'all' });
   const [isFiltering, setIsFiltering] = useState(false);
   const [tempPhoto, setTempPhoto] = useState<string | null>(null);
+  const [cameraMode, setCameraMode] = useState<'check-in' | 'check-out' | null>(null);
   
   const [activeTab, setActiveTab] = useState<'home' | 'journal' | 'history' | 'profile'>('home');
   const [isChangingPassword, setIsChangingPassword] = useState(false);
@@ -264,6 +265,32 @@ export function UserDashboard({ profile }: { profile: UserProfile }) {
     }
   };
 
+  const openVerificationCamera = async (mode: 'check-in' | 'check-out') => {
+    setCameraMode(mode);
+    setIsCameraOpen(true);
+    setFaceStatus('detecting');
+    await loadFaceModels();
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+        
+        // Face detection loop
+        const interval = setInterval(async () => {
+          if (!videoRef.current || !isCameraOpen) {
+            clearInterval(interval);
+            return;
+          }
+          const descriptor = await getFaceDescriptor(videoRef.current);
+          setFaceStatus(descriptor ? 'detected' : 'not_detected');
+        }, 1000);
+      }
+    } catch (err) {
+      toast.error('Akses kamera diperlukan untuk verifikasi wajah');
+      setIsCameraOpen(false);
+    }
+  };
+
   const handleCheckIn = async () => {
     if (!location || !tenant) {
       toast.error('Data lokasi tidak tersedia');
@@ -295,28 +322,7 @@ export function UserDashboard({ profile }: { profile: UserProfile }) {
       return;
     }
 
-    setIsCameraOpen(true);
-    setFaceStatus('detecting');
-    await loadFaceModels();
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ video: true });
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-        
-        // Face detection loop
-        const interval = setInterval(async () => {
-          if (!videoRef.current || !isCameraOpen) {
-            clearInterval(interval);
-            return;
-          }
-          const descriptor = await getFaceDescriptor(videoRef.current);
-          setFaceStatus(descriptor ? 'detected' : 'not_detected');
-        }, 1000);
-      }
-    } catch (err) {
-      toast.error('Akses kamera diperlukan untuk verifikasi wajah');
-      setIsCameraOpen(false);
-    }
+    await openVerificationCamera('check-in');
   };
 
   const handleStartFaceRegistration = async () => {
@@ -433,8 +439,8 @@ export function UserDashboard({ profile }: { profile: UserProfile }) {
       else toast.error('Check-in ditolak: ' + reason);
 
       setIsCameraOpen(false);
-      const stream = videoRef.current.srcObject as MediaStream;
-      stream.getTracks().forEach(track => track.stop());
+      const stream = videoRef.current?.srcObject as MediaStream;
+      stream?.getTracks().forEach(track => track.stop());
     } catch (error) {
       toast.error('Check-in gagal. Silakan coba lagi.');
     } finally {
@@ -461,12 +467,51 @@ export function UserDashboard({ profile }: { profile: UserProfile }) {
       }
     }
 
+    await openVerificationCamera('check-out');
+  };
+
+  const processCheckOut = async () => {
+    if (!videoRef.current || !location || !tenant || !lastLog) return;
     setIsProcessing(true);
+
     try {
+      // 1. Validate Location
+      const locStatus = await validateLocation(
+        location.lat, 
+        location.lng, 
+        location.accuracy, 
+        tenant.lat, 
+        tenant.lng, 
+        tenant.radius
+      );
+
+      // 2. Face Recognition
+      const descriptor = await getFaceDescriptor(videoRef.current);
+      let faceMatch = false;
+      if (descriptor && profile.face_descriptor) {
+        faceMatch = compareFaces(Array.from(descriptor), profile.face_descriptor);
+      } else if (!profile.face_descriptor) {
+        faceMatch = true; // Allow if not registered
+      }
+
+      // 3. Determine if suspicious
+      const isSuspicious = !locStatus.isValid || locStatus.isSuspicious || !faceMatch;
+      const reason = !faceMatch ? 'Wajah tidak cocok' : locStatus.reason || 'Verifikasi lokasi gagal';
+
       await updateDoc(doc(db, 'attendance', lastLog.id), {
-        check_out: serverTimestamp()
+        check_out: serverTimestamp(),
+        check_out_lat: location.lat,
+        check_out_lng: location.lng,
+        check_out_status: isSuspicious ? 'suspicious' : 'valid',
+        check_out_reason: isSuspicious ? reason : ''
       });
-      toast.success('Check-out berhasil!');
+
+      if (!isSuspicious) toast.success('Check-out berhasil!');
+      else toast.warning('Check-out berhasil namun ditandai: ' + reason);
+
+      setIsCameraOpen(false);
+      const stream = videoRef.current?.srcObject as MediaStream;
+      stream?.getTracks().forEach(track => track.stop());
     } catch (error) {
       toast.error('Check-out gagal');
     } finally {
@@ -2081,7 +2126,7 @@ export function UserDashboard({ profile }: { profile: UserProfile }) {
                 }}>Batal</Button>
                 <Button 
                   className="flex-1 h-14 rounded-2xl font-black uppercase tracking-widest bg-green-600 hover:bg-green-700 shadow-lg shadow-green-200" 
-                  onClick={processCheckIn} 
+                  onClick={cameraMode === 'check-in' ? processCheckIn : processCheckOut} 
                   disabled={isProcessing}
                 >
                   {isProcessing ? <Loader2 className="h-5 w-5 animate-spin" /> : 'Verifikasi'}
