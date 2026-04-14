@@ -83,8 +83,8 @@ export function UserDashboard({ profile }: { profile: UserProfile }) {
   const [cameraMode, setCameraMode] = useState<'check-in' | 'check-out' | null>(null);
   
   const [activeTab, setActiveTab] = useState<'home' | 'journal' | 'history' | 'profile'>('home');
-  const [showPersonalInfo, setShowPersonalInfo] = useState(true);
-  const [showAccountSettings, setShowAccountSettings] = useState(true);
+  const [showPersonalInfo, setShowPersonalInfo] = useState(false);
+  const [showAccountSettings, setShowAccountSettings] = useState(false);
   const [isChangingPassword, setIsChangingPassword] = useState(false);
   const [passwords, setPasswords] = useState({ current: '', new: '', confirm: '' });
   const [isUpdatingProfile, setIsUpdatingProfile] = useState(false);
