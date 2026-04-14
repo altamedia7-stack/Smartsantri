@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { db } from '../firebase';
-import { collection, onSnapshot, addDoc, updateDoc, deleteDoc, doc, serverTimestamp, query, orderBy } from 'firebase/firestore';
-import { Tenant } from '../types';
+import { collection, onSnapshot, addDoc, updateDoc, deleteDoc, doc, serverTimestamp, query, orderBy, where, getDocs } from 'firebase/firestore';
+import { Tenant, UserProfile, AttendanceRecord } from '../types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -9,11 +9,14 @@ import { Label } from '@/components/ui/label';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Building2, Users, Activity, Trash2, Edit2, MapPin, ShieldCheck, Mail, Lock, Eye, EyeOff, Loader2 } from 'lucide-react';
+import { Plus, Building2, Users, Activity, Trash2, Edit2, MapPin, ShieldCheck, Mail, Lock, Eye, EyeOff, Loader2, ArrowLeft, Calendar, LogIn, LogOut } from 'lucide-react';
 import { toast } from 'sonner';
 import { createAuthUser } from '../lib/authUtils';
 import { setDoc } from 'firebase/firestore';
 import { handleFirestoreError, OperationType } from '../lib/errorUtils';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { format } from 'date-fns';
+import { id } from 'date-fns/locale';
 
 export function SuperAdminDashboard() {
   const [tenants, setTenants] = useState<Tenant[]>([]);
@@ -26,6 +29,12 @@ export function SuperAdminDashboard() {
   const [editingTenant, setEditingTenant] = useState<Tenant | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  
+  // Tenant Details State
+  const [viewingTenantDetails, setViewingTenantDetails] = useState<Tenant | null>(null);
+  const [tenantUsers, setTenantUsers] = useState<UserProfile[]>([]);
+  const [tenantAttendance, setTenantAttendance] = useState<AttendanceRecord[]>([]);
+  const [loadingDetails, setLoadingDetails] = useState(false);
   
   const [newAdmin, setNewAdmin] = useState({
     name: '',
@@ -217,6 +226,212 @@ export function SuperAdminDashboard() {
     }
   };
 
+  const fetchTenantDetails = async (tenant: Tenant) => {
+    setLoadingDetails(true);
+    setViewingTenantDetails(tenant);
+    try {
+      // Fetch Users
+      const usersQuery = query(collection(db, 'users'), where('tenant_id', '==', tenant.id));
+      const usersSnap = await getDocs(usersQuery);
+      const usersData = usersSnap.docs.map(doc => ({ id: doc.id, ...doc.data() } as UserProfile));
+      setTenantUsers(usersData);
+
+      // Fetch Attendance
+      const attendanceQuery = query(
+        collection(db, 'attendance'), 
+        where('tenant_id', '==', tenant.id),
+        orderBy('check_in', 'desc')
+      );
+      const attendanceSnap = await getDocs(attendanceQuery);
+      const attendanceData = attendanceSnap.docs.map(doc => ({ id: doc.id, ...doc.data() } as AttendanceRecord));
+      setTenantAttendance(attendanceData);
+    } catch (error) {
+      console.error("Error fetching tenant details:", error);
+      toast.error("Gagal memuat detail tenant");
+    } finally {
+      setLoadingDetails(false);
+    }
+  };
+
+  if (viewingTenantDetails) {
+    return (
+      <div className="space-y-8">
+        <div className="flex items-center gap-4">
+          <Button variant="ghost" size="icon" onClick={() => setViewingTenantDetails(null)}>
+            <ArrowLeft className="h-5 w-5" />
+          </Button>
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900">{viewingTenantDetails.name}</h1>
+            <p className="text-gray-500">Detail organisasi, pengguna, dan log absensi</p>
+          </div>
+        </div>
+
+        <Tabs defaultValue="overview" className="w-full">
+          <TabsList className="grid w-full grid-cols-3 max-w-md">
+            <TabsTrigger value="overview">Ringkasan</TabsTrigger>
+            <TabsTrigger value="users">Pengguna ({tenantUsers.length})</TabsTrigger>
+            <TabsTrigger value="attendance">Absensi ({tenantAttendance.length})</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="overview" className="mt-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Informasi Organisasi</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <p className="text-sm font-medium text-gray-500">Status</p>
+                      <Badge variant={viewingTenantDetails.status === 'active' ? 'default' : 'secondary'} className={viewingTenantDetails.status === 'active' ? 'bg-green-100 text-green-700' : ''}>
+                        {viewingTenantDetails.status}
+                      </Badge>
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-gray-500">Paket</p>
+                      <p className="font-semibold">{viewingTenantDetails.subscription_plan}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-gray-500">Radius Absensi</p>
+                      <p className="font-semibold">{viewingTenantDetails.radius} meter</p>
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-gray-500">Koordinat</p>
+                      <p className="text-xs font-mono">{viewingTenantDetails.lat.toFixed(6)}, {viewingTenantDetails.lng.toFixed(6)}</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle>Statistik Cepat</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="p-4 bg-blue-50 rounded-xl">
+                      <p className="text-xs font-bold text-blue-600 uppercase">Total User</p>
+                      <p className="text-2xl font-black text-blue-900">{tenantUsers.length}</p>
+                    </div>
+                    <div className="p-4 bg-green-50 rounded-xl">
+                      <p className="text-xs font-bold text-green-600 uppercase">Total Absensi</p>
+                      <p className="text-2xl font-black text-green-900">{tenantAttendance.length}</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          </TabsContent>
+
+          <TabsContent value="users" className="mt-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>Daftar Pengguna</CardTitle>
+                <CardDescription>Semua pengguna yang terdaftar di {viewingTenantDetails.name}</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Nama</TableHead>
+                      <TableHead>Email</TableHead>
+                      <TableHead>Role</TableHead>
+                      <TableHead>Terdaftar</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {tenantUsers.map((user) => (
+                      <TableRow key={user.id}>
+                        <TableCell className="font-medium">{user.name}</TableCell>
+                        <TableCell>{user.email}</TableCell>
+                        <TableCell>
+                          <Badge variant="outline">{user.role}</Badge>
+                        </TableCell>
+                        <TableCell className="text-xs text-gray-500">
+                          {user.createdAt ? format(user.createdAt.toDate(), 'dd MMM yyyy', { locale: id }) : '-'}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                    {tenantUsers.length === 0 && (
+                      <TableRow>
+                        <TableCell colSpan={4} className="h-24 text-center text-gray-500">
+                          Tidak ada pengguna ditemukan
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="attendance" className="mt-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>Log Absensi</CardTitle>
+                <CardDescription>Riwayat absensi terbaru dari {viewingTenantDetails.name}</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Pengguna</TableHead>
+                      <TableHead>Waktu</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Koordinat</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {tenantAttendance.map((log) => {
+                      const user = tenantUsers.find(u => u.id === log.user_id);
+                      return (
+                        <TableRow key={log.id}>
+                          <TableCell className="font-medium">{user?.name || 'Unknown'}</TableCell>
+                          <TableCell>
+                            <div className="flex flex-col">
+                              <span className="text-xs font-bold">
+                                {log.check_in ? format(log.check_in.toDate(), 'dd MMM yyyy', { locale: id }) : '-'}
+                              </span>
+                              <div className="flex items-center gap-2 text-[10px] text-gray-500">
+                                <LogIn className="h-3 w-3 text-green-500" />
+                                {log.check_in ? format(log.check_in.toDate(), 'HH:mm') : '-'}
+                                {log.check_out && (
+                                  <>
+                                    <LogOut className="h-3 w-3 text-orange-500 ml-1" />
+                                    {format(log.check_out.toDate(), 'HH:mm')}
+                                  </>
+                                )}
+                              </div>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant={log.status === 'valid' ? 'default' : log.status === 'rejected' ? 'destructive' : 'secondary'} className={log.status === 'valid' ? 'bg-green-100 text-green-700' : ''}>
+                              {log.status}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-[10px] font-mono text-gray-500">
+                            {log.lat.toFixed(4)}, {log.lng.toFixed(4)}
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                    {tenantAttendance.length === 0 && (
+                      <TableRow>
+                        <TableCell colSpan={4} className="h-24 text-center text-gray-500">
+                          Tidak ada data absensi ditemukan
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-8">
       <div className="flex items-center justify-between">
@@ -332,6 +547,15 @@ export function SuperAdminDashboard() {
                   <TableCell>{tenant.subscription_plan}</TableCell>
                   <TableCell className="text-right">
                     <div className="flex justify-end gap-2">
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        onClick={() => fetchTenantDetails(tenant)}
+                        className="text-green-600 hover:text-green-700"
+                        title="Lihat Detail"
+                      >
+                        <Eye className="h-4 w-4" />
+                      </Button>
                       <Button 
                         variant="ghost" 
                         size="icon" 
