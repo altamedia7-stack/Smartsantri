@@ -36,9 +36,9 @@ export async function validateLocation(
   let reason = '';
 
   // Anti-fake GPS checks
-  if (accuracy > 50) {
+  if (accuracy > 100) {
     isSuspicious = true;
-    reason = 'Low GPS accuracy (>50m)';
+    reason = 'Low GPS accuracy (>100m)';
   }
 
   // Basic radius check

@@ -414,6 +414,18 @@ export function UserDashboard({ profile }: { profile: UserProfile }) {
       // 3. Determine Status
       let status: 'valid' | 'rejected' | 'suspicious' = 'valid';
       let reason = '';
+      let isLate = false;
+
+      if (tenant.check_in_time) {
+        const [h, m] = tenant.check_in_time.split(':').map(Number);
+        const now = new Date();
+        const target = new Date();
+        target.setHours(h, m, 0);
+        // Consider late if more than 1 minute past start time
+        if (now.getTime() > target.getTime() + 60000) {
+          isLate = true;
+        }
+      }
 
       if (!locStatus.isValid) {
         status = 'rejected';
@@ -431,6 +443,7 @@ export function UserDashboard({ profile }: { profile: UserProfile }) {
         lat: location.lat,
         lng: location.lng,
         status,
+        is_late: isLate,
         rejection_reason: reason
       });
 
@@ -673,8 +686,9 @@ export function UserDashboard({ profile }: { profile: UserProfile }) {
     return matchMonth && matchYear && matchStatus && matchDate;
   });
 
-  const totalHadir = filteredHistory.filter(h => h.status === 'valid').length;
-  const totalTerlambat = filteredHistory.filter(h => h.status === 'suspicious').length;
+  const totalHadir = filteredHistory.filter(h => h.status === 'valid' && !h.is_late).length;
+  const totalTerlambat = filteredHistory.filter(h => h.is_late && h.status !== 'rejected').length;
+  const totalMencurigakan = filteredHistory.filter(h => h.status === 'suspicious').length;
   const totalAlpha = filteredHistory.filter(h => h.status === 'rejected').length;
   
   const getWorkingDays = (year: number, month: number) => {
@@ -699,7 +713,9 @@ export function UserDashboard({ profile }: { profile: UserProfile }) {
       const date = log.check_in?.toDate().toLocaleDateString('id-ID');
       const checkIn = log.check_in?.toDate().toLocaleTimeString('id-ID');
       const checkOut = log.check_out ? log.check_out.toDate().toLocaleTimeString('id-ID') : '-';
-      const status = log.status === 'valid' ? 'Hadir' : log.status === 'rejected' ? 'Alpha' : 'Terlambat';
+      const status = log.status === 'rejected' ? 'Alpha' : 
+                     log.status === 'suspicious' ? 'Mencurigakan' : 
+                     log.is_late ? 'Terlambat' : 'Hadir';
       const reason = log.rejection_reason || '-';
       return [date, checkIn, checkOut, status, reason].join(',');
     });
@@ -1442,6 +1458,7 @@ export function UserDashboard({ profile }: { profile: UserProfile }) {
                             <SelectItem value="all" className="rounded-lg">Semua Status</SelectItem>
                             <SelectItem value="hadir" className="rounded-lg">Hadir</SelectItem>
                             <SelectItem value="terlambat" className="rounded-lg">Terlambat</SelectItem>
+                            <SelectItem value="mencurigakan" className="rounded-lg">Mencurigakan</SelectItem>
                             <SelectItem value="alpha" className="rounded-lg">Tidak Hadir</SelectItem>
                           </SelectContent>
                         </Select>
@@ -1479,10 +1496,10 @@ export function UserDashboard({ profile }: { profile: UserProfile }) {
                 <div className="rounded-3xl bg-white border border-gray-100 p-4 shadow-sm flex flex-col justify-between">
                   <div className="flex items-center gap-2 mb-2">
                     <div className="h-2 w-2 rounded-full bg-yellow-500" />
-                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Terlambat</p>
+                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Mencurigakan</p>
                   </div>
                   <div className="flex items-end gap-1">
-                    <span className="text-3xl font-black text-gray-900 leading-none">{totalTerlambat}</span>
+                    <span className="text-3xl font-black text-gray-900 leading-none">{totalMencurigakan}</span>
                     <span className="text-[10px] font-bold text-gray-500 mb-1">HARI</span>
                   </div>
                 </div>
@@ -1552,7 +1569,9 @@ export function UserDashboard({ profile }: { profile: UserProfile }) {
                                 log.status === 'rejected' ? 'bg-red-50 text-red-700 border-red-100' : 
                                 'bg-yellow-50 text-yellow-700 border-yellow-100'
                               }`}>
-                                {log.status === 'valid' ? 'Hadir' : log.status === 'rejected' ? 'Alpha' : 'Terlambat'}
+                                {log.status === 'rejected' ? 'Alpha' : 
+                                 log.status === 'suspicious' ? 'Mencurigakan' : 
+                                 log.is_late ? 'Terlambat' : 'Hadir'}
                               </Badge>
                             </div>
                             <div className="flex items-center gap-3">
@@ -1612,7 +1631,9 @@ export function UserDashboard({ profile }: { profile: UserProfile }) {
                 }`}>
                   <div className="flex items-center justify-between mb-4">
                     <Badge className="bg-white/20 text-white border-none backdrop-blur-md px-3 py-1 rounded-full text-[9px] font-black tracking-widest uppercase">
-                      {selectedHistory.status === 'valid' ? 'Hadir' : selectedHistory.status === 'rejected' ? 'Alpha' : 'Terlambat'}
+                      {selectedHistory.status === 'rejected' ? 'Alpha' : 
+                       selectedHistory.status === 'suspicious' ? 'Mencurigakan' : 
+                       selectedHistory.is_late ? 'Terlambat' : 'Hadir'}
                     </Badge>
                     {selectedHistory.status === 'valid' ? <CheckCircle2 className="h-6 w-6 text-white/80" /> : 
                      selectedHistory.status === 'rejected' ? <XCircle className="h-6 w-6 text-white/80" /> : 
@@ -1735,25 +1756,28 @@ export function UserDashboard({ profile }: { profile: UserProfile }) {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.1 }}
-            className="grid grid-cols-2 gap-4"
+            className="grid grid-cols-3 gap-3"
           >
-            <div className="bg-white rounded-[20px] p-4 shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-gray-100 flex items-center gap-4">
-              <div className="h-12 w-12 rounded-2xl bg-green-50 flex items-center justify-center text-green-600">
-                <CheckCircle2 className="h-6 w-6" />
+            <div className="bg-white rounded-[20px] p-3 shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-gray-100 flex flex-col items-center gap-1">
+              <div className="h-10 w-10 rounded-xl bg-green-50 flex items-center justify-center text-green-600 mb-1">
+                <CheckCircle2 className="h-5 w-5" />
               </div>
-              <div>
-                <p className="text-2xl font-bold text-gray-900">{totalHadir}</p>
-                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Hadir Bulan Ini</p>
-              </div>
+              <p className="text-xl font-bold text-gray-900 leading-none">{totalHadir}</p>
+              <p className="text-[8px] font-bold text-gray-400 uppercase tracking-widest">Hadir</p>
             </div>
-            <div className="bg-white rounded-[20px] p-4 shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-gray-100 flex items-center gap-4">
-              <div className="h-12 w-12 rounded-2xl bg-orange-50 flex items-center justify-center text-orange-600">
-                <Clock className="h-6 w-6" />
+            <div className="bg-white rounded-[20px] p-3 shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-gray-100 flex flex-col items-center gap-1">
+              <div className="h-10 w-10 rounded-xl bg-orange-50 flex items-center justify-center text-orange-600 mb-1">
+                <Clock className="h-5 w-5" />
               </div>
-              <div>
-                <p className="text-2xl font-bold text-gray-900">{totalTerlambat}</p>
-                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Terlambat</p>
+              <p className="text-xl font-bold text-gray-900 leading-none">{totalTerlambat}</p>
+              <p className="text-[8px] font-bold text-gray-400 uppercase tracking-widest">Terlambat</p>
+            </div>
+            <div className="bg-white rounded-[20px] p-3 shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-gray-100 flex flex-col items-center gap-1">
+              <div className="h-10 w-10 rounded-xl bg-yellow-50 flex items-center justify-center text-yellow-600 mb-1">
+                <AlertTriangle className="h-5 w-5" />
               </div>
+              <p className="text-xl font-bold text-gray-900 leading-none">{totalMencurigakan}</p>
+              <p className="text-[8px] font-bold text-gray-400 uppercase tracking-widest">Mencurigakan</p>
             </div>
           </motion.div>
 

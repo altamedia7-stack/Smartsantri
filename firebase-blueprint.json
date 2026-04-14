@@ -51,6 +51,7 @@
         "lng": { "type": "number" },
         "photo_url": { "type": "string" },
         "status": { "type": "string", "enum": ["valid", "rejected", "suspicious"] },
+        "is_late": { "type": "boolean", "description": "Whether the user was late" },
         "rejection_reason": { "type": "string" }
       },
       "required": ["tenant_id", "user_id", "check_in", "status"]
