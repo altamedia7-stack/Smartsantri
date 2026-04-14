@@ -13,11 +13,13 @@ import { auth } from '../firebase';
 import { signOut } from 'firebase/auth';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Loader2, MapPin, Camera, CheckCircle2, XCircle, AlertTriangle, Clock, History, BookOpen, Plus, Home, User, Users, Calendar, Lock, MoreVertical, Bell, LogOut, Send, Settings, Info, ChevronRight, LogIn, LogOut as LogOutIcon, Scan, RefreshCw, Filter, Check, FileText, Image, Trash2, Edit, Search, ChevronLeft, Upload, Download, Mail, Phone, CreditCard, Globe, Moon, Edit2 } from 'lucide-react';
+import { Loader2, MapPin, Camera, CheckCircle2, XCircle, AlertTriangle, Clock, History, BookOpen, Plus, Home, User, Users, Calendar, Lock, MoreVertical, Bell, LogOut, Send, Settings, Info, ChevronRight, ChevronDown, LogIn, LogOut as LogOutIcon, Scan, RefreshCw, Filter, Check, FileText, Image, Trash2, Edit, Search, ChevronLeft, Upload, Download, Mail, Phone, CreditCard, Globe, Moon, Edit2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { toast } from 'sonner';
 import { validateLocation, getFaceDescriptor, loadFaceModels, compareFaces, calculateDistance } from '../lib/attendance';
 import { handleFirestoreError, OperationType } from '../lib/errorUtils';
+import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, isToday, startOfWeek, endOfWeek, isSameMonth } from 'date-fns';
+import { id } from 'date-fns/locale';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 
 const WeeklyChart = ({ data }: { data: any[] }) => {
@@ -81,6 +83,8 @@ export function UserDashboard({ profile }: { profile: UserProfile }) {
   const [cameraMode, setCameraMode] = useState<'check-in' | 'check-out' | null>(null);
   
   const [activeTab, setActiveTab] = useState<'home' | 'journal' | 'history' | 'profile'>('home');
+  const [showPersonalInfo, setShowPersonalInfo] = useState(true);
+  const [showAccountSettings, setShowAccountSettings] = useState(true);
   const [isChangingPassword, setIsChangingPassword] = useState(false);
   const [passwords, setPasswords] = useState({ current: '', new: '', confirm: '' });
   const [isUpdatingProfile, setIsUpdatingProfile] = useState(false);
@@ -1808,6 +1812,91 @@ export function UserDashboard({ profile }: { profile: UserProfile }) {
             </div>
           </motion.div>
 
+          {/* KALENDER ABSENSI */}
+          <motion.div 
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.15 }}
+            className="bg-white rounded-[24px] p-5 shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-gray-100"
+          >
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-sm font-bold text-gray-900">Kalender Kehadiran</h3>
+              <span className="text-xs font-medium text-gray-500 bg-gray-100 px-2 py-1 rounded-md">
+                {format(new Date(), 'MMMM yyyy', { locale: id })}
+              </span>
+            </div>
+            <div className="grid grid-cols-7 gap-1 text-center mb-2">
+              {['Min', 'Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab'].map(day => (
+                <div key={day} className="text-[10px] font-bold text-gray-400 uppercase">{day}</div>
+              ))}
+            </div>
+            <div className="grid grid-cols-7 gap-1">
+              {(() => {
+                const today = new Date();
+                const start = startOfWeek(startOfMonth(today));
+                const end = endOfWeek(endOfMonth(today));
+                const days = eachDayOfInterval({ start, end });
+
+                return days.map((day, idx) => {
+                  const isCurrentMonth = isSameMonth(day, today);
+                  const isTodayDate = isToday(day);
+                  
+                  // Find log for this day
+                  const log = history.find(l => l.check_in && isSameDay(l.check_in.toDate(), day));
+                  
+                  let statusColor = 'bg-gray-50 text-gray-400';
+                  let dotColor = '';
+                  
+                  if (log) {
+                    if (log.status === 'valid') {
+                      if (log.is_late) {
+                        statusColor = 'bg-orange-50 text-orange-700 border border-orange-200';
+                        dotColor = 'bg-orange-500';
+                      } else {
+                        statusColor = 'bg-green-50 text-green-700 border border-green-200';
+                        dotColor = 'bg-green-500';
+                      }
+                    } else if (log.status === 'suspicious') {
+                      statusColor = 'bg-yellow-50 text-yellow-700 border border-yellow-200';
+                      dotColor = 'bg-yellow-500';
+                    } else if (log.status === 'rejected') {
+                      statusColor = 'bg-red-50 text-red-700 border border-red-200';
+                      dotColor = 'bg-red-500';
+                    }
+                  } else if (isCurrentMonth && day < today) {
+                     // Check if it's a holiday or weekend
+                     const isWeekend = day.getDay() === 0 || day.getDay() === 6;
+                     if (isWeekend) {
+                       statusColor = 'bg-gray-100 text-gray-400';
+                     } else {
+                       statusColor = 'bg-red-50 text-red-700 border border-red-100 opacity-50'; // Alpha
+                     }
+                  }
+
+                  if (!isCurrentMonth) {
+                    statusColor = 'opacity-0 pointer-events-none';
+                  }
+
+                  return (
+                    <div 
+                      key={idx} 
+                      className={`relative aspect-square flex flex-col items-center justify-center rounded-xl text-xs font-medium ${statusColor} ${isTodayDate ? 'ring-2 ring-green-500 ring-offset-1' : ''}`}
+                    >
+                      {isCurrentMonth && format(day, 'd')}
+                      {dotColor && <div className={`absolute bottom-1 w-1 h-1 rounded-full ${dotColor}`} />}
+                    </div>
+                  );
+                });
+              })()}
+            </div>
+            <div className="flex flex-wrap items-center justify-center gap-3 mt-4 text-[10px] font-medium text-gray-500">
+              <div className="flex items-center gap-1"><div className="w-2 h-2 rounded-full bg-green-500"></div>Hadir</div>
+              <div className="flex items-center gap-1"><div className="w-2 h-2 rounded-full bg-orange-500"></div>Terlambat</div>
+              <div className="flex items-center gap-1"><div className="w-2 h-2 rounded-full bg-yellow-500"></div>Mencurigakan</div>
+              <div className="flex items-center gap-1"><div className="w-2 h-2 rounded-full bg-red-500"></div>Alpha</div>
+            </div>
+          </motion.div>
+
           {/* INFORMASI PRIBADI */}
           <motion.div 
             initial={{ opacity: 0, y: 20 }}
@@ -1815,60 +1904,77 @@ export function UserDashboard({ profile }: { profile: UserProfile }) {
             transition={{ delay: 0.2 }}
             className="bg-white rounded-[24px] shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-gray-100 overflow-hidden"
           >
-            <div className="p-5 border-b border-gray-50 bg-gray-50/50">
+            <div 
+              className="p-5 border-b border-gray-50 bg-gray-50/50 flex justify-between items-center cursor-pointer"
+              onClick={() => setShowPersonalInfo(!showPersonalInfo)}
+            >
               <h3 className="text-sm font-bold text-gray-900">Informasi Pribadi</h3>
+              <Button variant="ghost" size="sm" className="h-8 w-8 p-0 rounded-full">
+                {showPersonalInfo ? <ChevronDown className="h-4 w-4 text-gray-500" /> : <ChevronRight className="h-4 w-4 text-gray-500" />}
+              </Button>
             </div>
-            <div className="p-2">
-              <div className="flex items-center gap-4 p-3 hover:bg-gray-50 rounded-xl transition-colors">
-                <div className="h-10 w-10 rounded-full bg-gray-50 flex items-center justify-center text-gray-500 shrink-0">
-                  <User className="h-5 w-5" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-xs text-gray-500 font-medium">Nama Lengkap</p>
-                  <p className="text-sm font-semibold text-gray-900 truncate">{profile.name}</p>
-                </div>
-              </div>
-              <div className="h-[1px] bg-gray-50 mx-4" />
-              <div className="flex items-center gap-4 p-3 hover:bg-gray-50 rounded-xl transition-colors">
-                <div className="h-10 w-10 rounded-full bg-gray-50 flex items-center justify-center text-gray-500 shrink-0">
-                  <Mail className="h-5 w-5" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-xs text-gray-500 font-medium">Email</p>
-                  <p className="text-sm font-semibold text-gray-900 truncate">{profile.email}</p>
-                </div>
-              </div>
-              <div className="h-[1px] bg-gray-50 mx-4" />
-              <div className="flex items-center gap-4 p-3 hover:bg-gray-50 rounded-xl transition-colors">
-                <div className="h-10 w-10 rounded-full bg-gray-50 flex items-center justify-center text-gray-500 shrink-0">
-                  <Phone className="h-5 w-5" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-xs text-gray-500 font-medium">Nomor HP</p>
-                  <p className="text-sm font-semibold text-gray-900 truncate">{profile.phone || '-'}</p>
-                </div>
-              </div>
-              <div className="h-[1px] bg-gray-50 mx-4" />
-              <div className="flex items-center gap-4 p-3 hover:bg-gray-50 rounded-xl transition-colors">
-                <div className="h-10 w-10 rounded-full bg-gray-50 flex items-center justify-center text-gray-500 shrink-0">
-                  <CreditCard className="h-5 w-5" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-xs text-gray-500 font-medium">NIP / NIS</p>
-                  <p className="text-sm font-semibold text-gray-900 truncate">{profile.nip_nis || '-'}</p>
-                </div>
-              </div>
-              <div className="h-[1px] bg-gray-50 mx-4" />
-              <div className="flex items-center gap-4 p-3 hover:bg-gray-50 rounded-xl transition-colors">
-                <div className="h-10 w-10 rounded-full bg-gray-50 flex items-center justify-center text-gray-500 shrink-0">
-                  <MapPin className="h-5 w-5" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-xs text-gray-500 font-medium">Alamat</p>
-                  <p className="text-sm font-semibold text-gray-900 truncate">{profile.address || '-'}</p>
-                </div>
-              </div>
-            </div>
+            <AnimatePresence>
+              {showPersonalInfo && (
+                <motion.div 
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: 'auto', opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
+                  className="overflow-hidden"
+                >
+                  <div className="p-2">
+                    <div className="flex items-center gap-4 p-3 hover:bg-gray-50 rounded-xl transition-colors">
+                      <div className="h-10 w-10 rounded-full bg-gray-50 flex items-center justify-center text-gray-500 shrink-0">
+                        <User className="h-5 w-5" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs text-gray-500 font-medium">Nama Lengkap</p>
+                        <p className="text-sm font-semibold text-gray-900 truncate">{profile.name}</p>
+                      </div>
+                    </div>
+                    <div className="h-[1px] bg-gray-50 mx-4" />
+                    <div className="flex items-center gap-4 p-3 hover:bg-gray-50 rounded-xl transition-colors">
+                      <div className="h-10 w-10 rounded-full bg-gray-50 flex items-center justify-center text-gray-500 shrink-0">
+                        <Mail className="h-5 w-5" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs text-gray-500 font-medium">Email</p>
+                        <p className="text-sm font-semibold text-gray-900 truncate">{profile.email}</p>
+                      </div>
+                    </div>
+                    <div className="h-[1px] bg-gray-50 mx-4" />
+                    <div className="flex items-center gap-4 p-3 hover:bg-gray-50 rounded-xl transition-colors">
+                      <div className="h-10 w-10 rounded-full bg-gray-50 flex items-center justify-center text-gray-500 shrink-0">
+                        <Phone className="h-5 w-5" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs text-gray-500 font-medium">Nomor HP</p>
+                        <p className="text-sm font-semibold text-gray-900 truncate">{profile.phone || '-'}</p>
+                      </div>
+                    </div>
+                    <div className="h-[1px] bg-gray-50 mx-4" />
+                    <div className="flex items-center gap-4 p-3 hover:bg-gray-50 rounded-xl transition-colors">
+                      <div className="h-10 w-10 rounded-full bg-gray-50 flex items-center justify-center text-gray-500 shrink-0">
+                        <CreditCard className="h-5 w-5" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs text-gray-500 font-medium">NIP / NIS</p>
+                        <p className="text-sm font-semibold text-gray-900 truncate">{profile.nip_nis || '-'}</p>
+                      </div>
+                    </div>
+                    <div className="h-[1px] bg-gray-50 mx-4" />
+                    <div className="flex items-center gap-4 p-3 hover:bg-gray-50 rounded-xl transition-colors">
+                      <div className="h-10 w-10 rounded-full bg-gray-50 flex items-center justify-center text-gray-500 shrink-0">
+                        <MapPin className="h-5 w-5" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs text-gray-500 font-medium">Alamat</p>
+                        <p className="text-sm font-semibold text-gray-900 truncate">{profile.address || '-'}</p>
+                      </div>
+                    </div>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </motion.div>
 
           {/* PENGATURAN AKUN */}
@@ -1878,12 +1984,26 @@ export function UserDashboard({ profile }: { profile: UserProfile }) {
             transition={{ delay: 0.3 }}
             className="bg-white rounded-[24px] shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-gray-100 overflow-hidden"
           >
-            <div className="p-5 border-b border-gray-50 bg-gray-50/50">
+            <div 
+              className="p-5 border-b border-gray-50 bg-gray-50/50 flex justify-between items-center cursor-pointer"
+              onClick={() => setShowAccountSettings(!showAccountSettings)}
+            >
               <h3 className="text-sm font-bold text-gray-900">Pengaturan Akun</h3>
+              <Button variant="ghost" size="sm" className="h-8 w-8 p-0 rounded-full">
+                {showAccountSettings ? <ChevronDown className="h-4 w-4 text-gray-500" /> : <ChevronRight className="h-4 w-4 text-gray-500" />}
+              </Button>
             </div>
-            <div className="p-2">
-              <Dialog open={isEditProfileOpen} onOpenChange={setIsEditProfileOpen}>
-                <DialogContent className="sm:max-w-md rounded-[2rem] p-8">
+            <AnimatePresence>
+              {showAccountSettings && (
+                <motion.div 
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: 'auto', opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
+                  className="overflow-hidden"
+                >
+                  <div className="p-2">
+                    <Dialog open={isEditProfileOpen} onOpenChange={setIsEditProfileOpen}>
+                      <DialogContent className="sm:max-w-md rounded-[2rem] p-8">
                   <DialogHeader>
                     <DialogTitle className="text-2xl font-bold tracking-tight">Edit Profil</DialogTitle>
                     <p className="text-sm text-gray-500">Perbarui informasi pribadi Anda.</p>
@@ -2031,6 +2151,9 @@ export function UserDashboard({ profile }: { profile: UserProfile }) {
                 </div>
               </button>
             </div>
+            </motion.div>
+            )}
+            </AnimatePresence>
           </motion.div>
 
           {/* FACE REGISTRATION (if not registered) */}
