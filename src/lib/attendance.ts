@@ -75,29 +75,35 @@ export async function validateLocation(
 // Face Recognition Helpers
 const MODEL_URL = 'https://raw.githubusercontent.com/justadudewhohacks/face-api.js/master/weights';
 
+let modelsLoaded = false;
+
 export async function loadFaceModels() {
+  if (modelsLoaded) return;
+  
   await Promise.all([
-    faceapi.nets.ssdMobilenetv1.loadFromUri(MODEL_URL),
     faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL),
     faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL),
     faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL),
+    // SSD is kept as fallback or for higher accuracy if needed, but we'll prefer Tiny for speed
+    faceapi.nets.ssdMobilenetv1.loadFromUri(MODEL_URL),
   ]);
+  
+  modelsLoaded = true;
 }
 
 export async function getFaceDescriptor(imageElement: HTMLImageElement | HTMLVideoElement | HTMLCanvasElement) {
-  // Try SSD Mobilenet first for better accuracy
+  if (!modelsLoaded) return null;
+
+  // Use Tiny Face Detector for much faster performance on mobile/web
+  // inputSize 320 or 416 is a good balance between speed and accuracy
   let detection = await faceapi
-    .detectSingleFace(imageElement, new faceapi.SsdMobilenetv1Options({ minConfidence: 0.5 }))
+    .detectSingleFace(imageElement, new faceapi.TinyFaceDetectorOptions({ inputSize: 320, scoreThreshold: 0.5 }))
     .withFaceLandmarks()
     .withFaceDescriptor();
   
-  // Fallback to Tiny Face Detector if SSD fails or is too slow (though usually SSD is fine on modern devices)
-  if (!detection) {
-    detection = await faceapi
-      .detectSingleFace(imageElement, new faceapi.TinyFaceDetectorOptions({ inputSize: 512, scoreThreshold: 0.5 }))
-      .withFaceLandmarks()
-      .withFaceDescriptor();
-  }
+  // Fallback to SSD only if Tiny fails and we really need a result, 
+  // but for real-time detection we usually just wait for the next frame.
+  // To keep it fast, we'll stick with Tiny for the live preview.
   
   return detection?.descriptor;
 }

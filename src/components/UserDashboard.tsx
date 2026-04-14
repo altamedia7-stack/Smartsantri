@@ -119,6 +119,7 @@ export function UserDashboard({ profile }: { profile: UserProfile }) {
   };
 
   useEffect(() => {
+    loadFaceModels(); // Pre-load models
     if (!profile.tenant_id) return;
 
     // Fetch Tenant
@@ -273,7 +274,6 @@ export function UserDashboard({ profile }: { profile: UserProfile }) {
     setCameraMode(mode);
     setIsCameraOpen(true);
     setFaceStatus('detecting');
-    await loadFaceModels();
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ video: true });
       if (videoRef.current) {
@@ -287,7 +287,7 @@ export function UserDashboard({ profile }: { profile: UserProfile }) {
           }
           const descriptor = await getFaceDescriptor(videoRef.current);
           setFaceStatus(descriptor ? 'detected' : 'not_detected');
-        }, 1000);
+        }, 500);
       }
     } catch (err) {
       toast.error('Akses kamera diperlukan untuk verifikasi wajah');
@@ -332,7 +332,6 @@ export function UserDashboard({ profile }: { profile: UserProfile }) {
   const handleStartFaceRegistration = async () => {
     setIsRegisteringFace(true);
     setFaceStatus('detecting');
-    await loadFaceModels();
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ video: true });
       if (videoRef.current) {
@@ -346,7 +345,7 @@ export function UserDashboard({ profile }: { profile: UserProfile }) {
           }
           const descriptor = await getFaceDescriptor(videoRef.current);
           setFaceStatus(descriptor ? 'detected' : 'not_detected');
-        }, 1000);
+        }, 500);
       }
     } catch (err) {
       toast.error('Akses kamera diperlukan untuk mendaftarkan wajah');
