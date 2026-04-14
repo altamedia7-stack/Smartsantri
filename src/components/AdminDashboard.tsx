@@ -487,11 +487,20 @@ export function AdminDashboard({ profile }: { profile: UserProfile }) {
       }
     };
 
+    const getReportHeader = (title: string, email: string) => [
+      [`Laporan Kehadiran: ${title}`],
+      [`Organisasi: ${tenant?.name || '-'}`],
+      [`Email: ${email}`],
+      [`Periode: ${exportStartDate} s/d ${exportEndDate}`],
+      [`Dicetak pada: ${new Date().toLocaleString('id-ID')}`],
+      []
+    ];
+
     if (exportOptions.style === 'default') {
       const targetUsers = exportUserId === 'all' ? users : users.filter(u => u.id === exportUserId);
       const allData: any[] = [];
       const holidayRows: number[] = [];
-      let currentRow = 1;
+      let currentRow = 7;
 
       targetUsers.forEach(user => {
         const userLogs = filteredLogs.filter(log => log.user_id === user.id);
@@ -523,7 +532,12 @@ export function AdminDashboard({ profile }: { profile: UserProfile }) {
         }
       });
 
-      const ws = XLSX.utils.json_to_sheet(allData);
+      const headerInfo = getReportHeader(
+        exportUserId === 'all' ? 'Semua Karyawan' : users.find(u => u.id === exportUserId)?.name || 'User',
+        exportUserId === 'all' ? '-' : users.find(u => u.id === exportUserId)?.email || '-'
+      );
+      const ws = XLSX.utils.aoa_to_sheet(headerInfo);
+      XLSX.utils.sheet_add_json(ws, allData, { origin: "A7" });
       
       // Apply styles
       const range = XLSX.utils.decode_range(ws['!ref']!);
@@ -531,7 +545,8 @@ export function AdminDashboard({ profile }: { profile: UserProfile }) {
         for (let C = range.s.c; C <= range.e.c; ++C) {
           const cell = ws[XLSX.utils.encode_cell({ r: R, c: C })];
           if (!cell) continue;
-          if (R === 0) cell.s = headerStyle;
+          if (R < 6) continue;
+          if (R === 6) cell.s = headerStyle;
           else if (holidayRows.includes(R)) cell.s = holidayStyle;
           else cell.s = normalStyle;
         }
@@ -552,13 +567,16 @@ export function AdminDashboard({ profile }: { profile: UserProfile }) {
           'Status Terakhir': userLogs.length > 0 ? (userLogs[0].status === 'valid' ? 'Hadir' : 'Ditolak') : 'Tidak Ada Data'
         };
       });
-      const summaryWS = XLSX.utils.json_to_sheet(summaryData);
+      const summaryHeader = getReportHeader("Ringkasan Karyawan", "-");
+      const summaryWS = XLSX.utils.aoa_to_sheet(summaryHeader);
+      XLSX.utils.sheet_add_json(summaryWS, summaryData, { origin: "A7" });
       const sRange = XLSX.utils.decode_range(summaryWS['!ref']!);
       for (let R = sRange.s.r; R <= sRange.e.r; ++R) {
         for (let C = sRange.s.c; C <= sRange.e.c; ++C) {
           const cell = summaryWS[XLSX.utils.encode_cell({ r: R, c: C })];
           if (!cell) continue;
-          cell.s = R === 0 ? headerStyle : normalStyle;
+          if (R < 6) continue;
+          cell.s = R === 6 ? headerStyle : normalStyle;
         }
       }
       XLSX.utils.book_append_sheet(workbook, summaryWS, "Ringkasan Karyawan");
@@ -569,22 +587,23 @@ export function AdminDashboard({ profile }: { profile: UserProfile }) {
         const userData: any[] = [];
         const holidayRows: number[] = [];
         let currentDate = new Date(startDate);
-        let index = 1;
+        let dataRowIndex = 7;
+        let noCounter = 1;
 
         while (currentDate <= endDate) {
           const dateStr = currentDate.toISOString().split('T')[0];
           const dayOfWeek = currentDate.getDay();
           const log = userLogs.find(l => l.check_in?.toDate().toISOString().split('T')[0] === dateStr);
           
-          const globalHoliday = holidays.find(h => !h.user_id && (h.date === dateStr || h.day === dayOfWeek));
+          const globalHoliday = holidays.find(h => !h.date && (h.date === dateStr || h.day === dayOfWeek));
           const userHoliday = holidays.find(h => h.user_id === user.id && (h.date === dateStr || h.day === dayOfWeek));
           const isWeeklyOff = tenant?.off_days?.includes(dayOfWeek);
           const holiday = globalHoliday || userHoliday;
 
-          if (holiday || isWeeklyOff) holidayRows.push(index);
+          if (holiday || isWeeklyOff) holidayRows.push(dataRowIndex);
 
           userData.push({
-            'No': index++,
+            'No': noCounter++,
             'Tanggal': currentDate.toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' }),
             'Clock In': log?.check_in?.toDate ? log.check_in.toDate().toLocaleTimeString('id-ID') : '-',
             'Clock Out': log?.check_out?.toDate ? log.check_out.toDate().toLocaleTimeString('id-ID') : '-',
@@ -593,15 +612,19 @@ export function AdminDashboard({ profile }: { profile: UserProfile }) {
           });
 
           currentDate.setDate(currentDate.getDate() + 1);
+          dataRowIndex++;
         }
 
-        const userWS = XLSX.utils.json_to_sheet(userData);
+        const userHeader = getReportHeader(user.name, user.email);
+        const userWS = XLSX.utils.aoa_to_sheet(userHeader);
+        XLSX.utils.sheet_add_json(userWS, userData, { origin: "A7" });
         const uRange = XLSX.utils.decode_range(userWS['!ref']!);
         for (let R = uRange.s.r; R <= uRange.e.r; ++R) {
           for (let C = uRange.s.c; C <= uRange.e.c; ++C) {
             const cell = userWS[XLSX.utils.encode_cell({ r: R, c: C })];
             if (!cell) continue;
-            if (R === 0) cell.s = headerStyle;
+            if (R < 6) continue;
+            if (R === 6) cell.s = headerStyle;
             else if (holidayRows.includes(R)) cell.s = holidayStyle;
             else cell.s = normalStyle;
           }
@@ -633,7 +656,9 @@ export function AdminDashboard({ profile }: { profile: UserProfile }) {
           };
         });
 
-        const ws = XLSX.utils.json_to_sheet(dateData);
+        const dateHeader = getReportHeader(`Laporan Tanggal ${dateStr}`, "-");
+        const ws = XLSX.utils.aoa_to_sheet(dateHeader);
+        XLSX.utils.sheet_add_json(ws, dateData, { origin: "A7" });
         const dRange = XLSX.utils.decode_range(ws['!ref']!);
         
         // Check if this date is a global holiday or weekly off for all
@@ -644,11 +669,13 @@ export function AdminDashboard({ profile }: { profile: UserProfile }) {
             const cell = ws[XLSX.utils.encode_cell({ r: R, c: C })];
             if (!cell) continue;
             
-            if (R === 0) {
+            if (R < 6) continue;
+            if (R === 6) {
               cell.s = headerStyle;
             } else {
               // For date-wise, we check if the specific user has a holiday
-              const user = users[R-1];
+              const user = users[R-7];
+              if (!user) continue;
               const userHoliday = holidays.find(h => h.user_id === user.id && (h.date === dateStr || h.day === dayOfWeek));
               if (isGlobalHoliday || userHoliday) {
                 cell.s = holidayStyle;
