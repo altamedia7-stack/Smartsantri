@@ -54,6 +54,7 @@ const MODEL_URL = 'https://raw.githubusercontent.com/justadudewhohacks/face-api.
 
 export async function loadFaceModels() {
   await Promise.all([
+    faceapi.nets.ssdMobilenetv1.loadFromUri(MODEL_URL),
     faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL),
     faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL),
     faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL),
@@ -61,15 +62,25 @@ export async function loadFaceModels() {
 }
 
 export async function getFaceDescriptor(imageElement: HTMLImageElement | HTMLVideoElement | HTMLCanvasElement) {
-  const detection = await faceapi
-    .detectSingleFace(imageElement, new faceapi.TinyFaceDetectorOptions())
+  // Try SSD Mobilenet first for better accuracy
+  let detection = await faceapi
+    .detectSingleFace(imageElement, new faceapi.SsdMobilenetv1Options({ minConfidence: 0.5 }))
     .withFaceLandmarks()
     .withFaceDescriptor();
+  
+  // Fallback to Tiny Face Detector if SSD fails or is too slow (though usually SSD is fine on modern devices)
+  if (!detection) {
+    detection = await faceapi
+      .detectSingleFace(imageElement, new faceapi.TinyFaceDetectorOptions({ inputSize: 512, scoreThreshold: 0.5 }))
+      .withFaceLandmarks()
+      .withFaceDescriptor();
+  }
   
   return detection?.descriptor;
 }
 
 export function compareFaces(descriptor1: number[], descriptor2: number[]) {
   const distance = faceapi.euclideanDistance(descriptor1, descriptor2);
-  return distance < 0.6; // Threshold for match
+  // Standard threshold is 0.6. Increasing to 0.65 for more leniency in varying lighting.
+  return distance < 0.65; 
 }

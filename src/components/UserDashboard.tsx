@@ -448,7 +448,13 @@ export function UserDashboard({ profile }: { profile: UserProfile }) {
       });
 
       if (status === 'valid') toast.success('Check-in berhasil!');
-      else if (status === 'suspicious') toast.warning('Check-in ditandai: ' + reason);
+      else if (status === 'suspicious') {
+        if (!faceMatch) {
+          toast.warning('Wajah tidak cocok. Pastikan pencahayaan cukup, wajah tidak tertutup, atau daftar ulang wajah di tab Profil.');
+        } else {
+          toast.warning('Check-in ditandai: ' + reason);
+        }
+      }
       else toast.error('Check-in ditolak: ' + reason);
 
       setIsCameraOpen(false);
@@ -520,7 +526,13 @@ export function UserDashboard({ profile }: { profile: UserProfile }) {
       });
 
       if (!isSuspicious) toast.success('Check-out berhasil!');
-      else toast.warning('Check-out berhasil namun ditandai: ' + reason);
+      else {
+        if (!faceMatch) {
+          toast.warning('Check-out berhasil namun wajah tidak cocok. Pastikan pencahayaan cukup atau daftar ulang wajah.');
+        } else {
+          toast.warning('Check-out berhasil namun ditandai: ' + reason);
+        }
+      }
 
       setIsCameraOpen(false);
       const stream = videoRef.current?.srcObject as MediaStream;
@@ -2007,27 +2019,29 @@ export function UserDashboard({ profile }: { profile: UserProfile }) {
           </motion.div>
 
           {/* FACE REGISTRATION (if not registered) */}
-          {!profile.face_descriptor && (
-            <motion.div 
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.4 }}
-              className="bg-orange-50 rounded-[24px] p-5 border border-orange-100 flex items-center justify-between"
-            >
-              <div className="flex items-center gap-4">
-                <div className="h-12 w-12 rounded-full bg-orange-100 flex items-center justify-center text-orange-600 shrink-0">
-                  <Scan className="h-6 w-6" />
-                </div>
-                <div>
-                  <h4 className="text-sm font-bold text-gray-900">Wajah Belum Terdaftar</h4>
-                  <p className="text-xs text-gray-600 mt-0.5">Daftarkan wajah untuk absensi</p>
-                </div>
+          <motion.div 
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.4 }}
+            className="bg-orange-50 rounded-[24px] p-5 border border-orange-100 flex items-center justify-between"
+          >
+            <div className="flex items-center gap-4">
+              <div className="h-12 w-12 rounded-full bg-orange-100 flex items-center justify-center text-orange-600 shrink-0">
+                <Scan className="h-6 w-6" />
               </div>
-              <Button size="sm" className="rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-bold" onClick={handleStartFaceRegistration}>
-                Daftar
-              </Button>
-            </motion.div>
-          )}
+              <div>
+                <h4 className="text-sm font-bold text-gray-900">
+                  {profile.face_descriptor ? 'Wajah Sudah Terdaftar' : 'Wajah Belum Terdaftar'}
+                </h4>
+                <p className="text-xs text-gray-600 mt-0.5">
+                  {profile.face_descriptor ? 'Klik untuk mendaftarkan ulang wajah' : 'Daftarkan wajah untuk absensi'}
+                </p>
+              </div>
+            </div>
+            <Button size="sm" className="rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-bold" onClick={handleStartFaceRegistration}>
+              {profile.face_descriptor ? 'Ulangi' : 'Daftar'}
+            </Button>
+          </motion.div>
 
           {/* SECURITY */}
           <motion.div 
@@ -2172,12 +2186,17 @@ export function UserDashboard({ profile }: { profile: UserProfile }) {
             <div className="w-full max-w-md overflow-hidden rounded-[3rem] bg-white shadow-2xl">
               <div className="p-8 text-center space-y-2">
                 <h2 className="text-2xl font-black text-gray-900 tracking-tight">Daftarkan Wajah</h2>
-                <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">Posisikan wajah di dalam lingkaran</p>
+                <div className="flex items-center justify-center gap-2">
+                  <div className={`h-2 w-2 rounded-full ${faceStatus === 'detected' ? 'bg-green-500' : 'bg-red-500'} animate-pulse`} />
+                  <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">
+                    {faceStatus === 'detected' ? 'Wajah Terdeteksi' : 'Mencari Wajah...'}
+                  </p>
+                </div>
               </div>
               <div className="relative aspect-square w-full bg-black overflow-hidden">
                 <video ref={videoRef} autoPlay muted playsInline className="h-full w-full object-cover scale-x-[-1]" />
                 <div className="absolute inset-0 flex items-center justify-center">
-                  <div className="h-64 w-64 rounded-full border-4 border-blue-500 shadow-[0_0_50px_rgba(59,130,246,0.3)] shadow-[0_0_0_1000px_rgba(0,0,0,0.6)]" />
+                  <div className={`h-64 w-64 rounded-full border-4 ${faceStatus === 'detected' ? 'border-green-500 shadow-[0_0_50px_rgba(34,197,94,0.5)]' : 'border-blue-500 shadow-[0_0_50px_rgba(59,130,246,0.3)]'} transition-all duration-500 shadow-[0_0_0_1000px_rgba(0,0,0,0.6)]`} />
                 </div>
               </div>
               <div className="flex gap-4 p-8">
