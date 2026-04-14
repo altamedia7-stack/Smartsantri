@@ -67,6 +67,66 @@
         "createdAt": { "type": "string", "format": "date-time" }
       },
       "required": ["tenant_id", "date", "name"]
+    },
+    "student": {
+      "title": "Student",
+      "description": "A student in a class.",
+      "type": "object",
+      "properties": {
+        "tenant_id": { "type": "string" },
+        "name": { "type": "string" },
+        "nis": { "type": "string", "description": "Nomor Induk Siswa" },
+        "class_name": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["tenant_id", "name", "class_name"]
+    },
+    "schedule": {
+      "title": "Schedule",
+      "description": "A teaching schedule for a teacher.",
+      "type": "object",
+      "properties": {
+        "tenant_id": { "type": "string" },
+        "user_id": { "type": "string", "description": "Teacher ID" },
+        "subject": { "type": "string" },
+        "class_name": { "type": "string" },
+        "day": { "type": "number", "description": "0=Sun, 1=Mon, ..., 6=Sat" },
+        "start_time": { "type": "string" },
+        "end_time": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["tenant_id", "user_id", "subject", "class_name", "day", "start_time", "end_time"]
+    },
+    "student_attendance": {
+      "title": "Student Attendance",
+      "description": "Attendance record for a student in a specific session.",
+      "type": "object",
+      "properties": {
+        "tenant_id": { "type": "string" },
+        "schedule_id": { "type": "string" },
+        "student_id": { "type": "string" },
+        "date": { "type": "string", "format": "date" },
+        "status": { "type": "string", "enum": ["H", "S", "I", "A"] },
+        "note": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["tenant_id", "schedule_id", "student_id", "date", "status"]
+    },
+    "grade": {
+      "title": "Grade",
+      "description": "A grade for a student.",
+      "type": "object",
+      "properties": {
+        "tenant_id": { "type": "string" },
+        "student_id": { "type": "string" },
+        "subject": { "type": "string" },
+        "type": { "type": "string", "description": "Tugas, UH, UTS, UAS, etc." },
+        "score": { "type": "number" },
+        "date": { "type": "string", "format": "date" },
+        "teacher_id": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["tenant_id", "student_id", "subject", "score", "teacher_id"]
     }
   },
   "firestore": {
@@ -85,6 +145,22 @@
     "/holidays/{holidayId}": {
       "schema": "holiday",
       "description": "Collection of holidays"
+    },
+    "/students/{studentId}": {
+      "schema": "student",
+      "description": "Collection of students"
+    },
+    "/schedules/{scheduleId}": {
+      "schema": "schedule",
+      "description": "Collection of teaching schedules"
+    },
+    "/student_attendance/{id}": {
+      "schema": "student_attendance",
+      "description": "Collection of student attendance"
+    },
+    "/grades/{gradeId}": {
+      "schema": "grade",
+      "description": "Collection of student grades"
     }
   }
 }

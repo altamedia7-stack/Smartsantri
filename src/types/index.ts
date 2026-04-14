@@ -86,3 +86,47 @@ export interface Announcement {
   active: boolean;
   createdAt: any;
 }
+
+export interface Student {
+  id: string;
+  tenant_id: string;
+  name: string;
+  nis?: string;
+  class_name: string;
+  createdAt: any;
+}
+
+export interface Schedule {
+  id: string;
+  tenant_id: string;
+  user_id: string;
+  subject: string;
+  class_name: string;
+  day: number; // 0=Sun, 1=Mon, ..., 6=Sat
+  start_time: string;
+  end_time: string;
+  createdAt: any;
+}
+
+export interface StudentAttendance {
+  id: string;
+  tenant_id: string;
+  schedule_id: string;
+  student_id: string;
+  date: string;
+  status: 'H' | 'S' | 'I' | 'A';
+  note?: string;
+  createdAt: any;
+}
+
+export interface Grade {
+  id: string;
+  tenant_id: string;
+  student_id: string;
+  subject: string;
+  type: string;
+  score: number;
+  date: string;
+  teacher_id: string;
+  createdAt: any;
+}

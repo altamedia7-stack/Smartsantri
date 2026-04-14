@@ -47,9 +47,19 @@ export async function validateLocation(
   }
 
   // 2. Suspiciously Perfect Accuracy (Some mock apps return exactly 0 or 1)
-  if (accuracy <= 1) {
+  if (accuracy <= 0.1) {
+    return {
+      isValid: false,
+      isSuspicious: true,
+      reason: 'Sinyal GPS tidak valid (Akurasi 0). Terdeteksi penggunaan Fake GPS.',
+      distance
+    };
+  }
+
+  if (accuracy === 1 || accuracy === 5 || accuracy === 10) {
+    // Some mock apps return round numbers
     isSuspicious = true;
-    reason = 'Sinyal GPS mencurigakan (Akurasi terlalu sempurna). Harap gunakan GPS asli.';
+    reason = 'Sinyal GPS mencurigakan (Akurasi angka bulat). Harap gunakan GPS asli.';
   }
 
   // 3. Radius Check
@@ -62,9 +72,8 @@ export async function validateLocation(
     };
   }
 
-  // 4. Suspiciously high accuracy but not perfect (e.g. 5-10m is normal, but constant 1.00000001 is weird)
-  // This is a bit harder to detect without history, but we can flag very low accuracy as suspicious
-  if (accuracy < 3 && !isSuspicious) {
+  // 4. Suspiciously high accuracy but not perfect
+  if (accuracy < 2 && !isSuspicious) {
     isSuspicious = true;
     reason = 'Akurasi GPS sangat tinggi, terdeteksi potensi penggunaan Mock Location.';
   }
@@ -84,8 +93,6 @@ export async function loadFaceModels() {
     faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL),
     faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL),
     faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL),
-    // SSD is kept as fallback or for higher accuracy if needed, but we'll prefer Tiny for speed
-    faceapi.nets.ssdMobilenetv1.loadFromUri(MODEL_URL),
   ]);
   
   modelsLoaded = true;
@@ -94,16 +101,11 @@ export async function loadFaceModels() {
 export async function getFaceDescriptor(imageElement: HTMLImageElement | HTMLVideoElement | HTMLCanvasElement) {
   if (!modelsLoaded) return null;
 
-  // Use Tiny Face Detector for much faster performance on mobile/web
-  // inputSize 320 or 416 is a good balance between speed and accuracy
+  // Use Tiny Face Detector with smaller inputSize for maximum speed
   let detection = await faceapi
-    .detectSingleFace(imageElement, new faceapi.TinyFaceDetectorOptions({ inputSize: 320, scoreThreshold: 0.5 }))
+    .detectSingleFace(imageElement, new faceapi.TinyFaceDetectorOptions({ inputSize: 224, scoreThreshold: 0.5 }))
     .withFaceLandmarks()
     .withFaceDescriptor();
-  
-  // Fallback to SSD only if Tiny fails and we really need a result, 
-  // but for real-time detection we usually just wait for the next frame.
-  // To keep it fast, we'll stick with Tiny for the live preview.
   
   return detection?.descriptor;
 }

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { db } from '../firebase';
-import { collection, addDoc, updateDoc, deleteDoc, doc, serverTimestamp, query, where, orderBy, limit, onSnapshot } from 'firebase/firestore';
-import { UserProfile, AttendanceRecord, Tenant, Journal, Holiday, Announcement } from '../types';
+import { collection, addDoc, updateDoc, deleteDoc, doc, serverTimestamp, query, where, orderBy, limit, onSnapshot, writeBatch } from 'firebase/firestore';
+import { UserProfile, AttendanceRecord, Tenant, Journal, Holiday, Announcement, Student, Schedule } from '../types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -75,7 +75,7 @@ export function UserDashboard({ profile }: { profile: UserProfile }) {
   const [isRegisteringFace, setIsRegisteringFace] = useState(false);
   const [isProfileCameraOpen, setIsProfileCameraOpen] = useState(false);
   const [newJournal, setNewJournal] = useState({ subject: '', class_name: '', time: '', material: '', description: '', is_draft: false });
-  const [journalView, setJournalView] = useState<'list' | 'form' | 'detail'>('list');
+  const [journalView, setJournalView] = useState<'list' | 'form' | 'detail' | 'schedules' | 'attendance' | 'grades'>('list');
   const [selectedJournal, setSelectedJournal] = useState<Journal | null>(null);
   const [journalFilter, setJournalFilter] = useState({ subject: 'all', class_name: 'all', status: 'all' });
   const [isFiltering, setIsFiltering] = useState(false);
@@ -84,6 +84,11 @@ export function UserDashboard({ profile }: { profile: UserProfile }) {
   
   const [faceDetectionCount, setFaceDetectionCount] = useState(0);
   const [autoVerifyCountdown, setAutoVerifyCountdown] = useState<number | null>(null);
+  const [schedules, setSchedules] = useState<Schedule[]>([]);
+  const [students, setStudents] = useState<Student[]>([]);
+  const [studentAttendance, setStudentAttendance] = useState<{[key: string]: 'H' | 'S' | 'I' | 'A'}>({});
+  const [studentGrades, setStudentGrades] = useState<{[key: string]: number}>({});
+  const [selectedSchedule, setSelectedSchedule] = useState<Schedule | null>(null);
   
   const [activeTab, setActiveTab] = useState<'home' | 'journal' | 'history' | 'profile'>('home');
   const [showPersonalInfo, setShowPersonalInfo] = useState(false);
@@ -199,6 +204,29 @@ export function UserDashboard({ profile }: { profile: UserProfile }) {
       }
     );
 
+    // Fetch Schedules for this teacher
+    const schedulesQuery = query(
+      collection(db, 'schedules'),
+      where('tenant_id', '==', profile.tenant_id),
+      where('user_id', '==', profile.id)
+    );
+    const unsubSchedules = onSnapshot(schedulesQuery, (snapshot) => {
+      setSchedules(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Schedule)));
+    }, (error) => {
+      handleFirestoreError(error, OperationType.LIST, 'schedules');
+    });
+
+    // Fetch Students for this tenant
+    const studentsQuery = query(
+      collection(db, 'students'),
+      where('tenant_id', '==', profile.tenant_id)
+    );
+    const unsubStudents = onSnapshot(studentsQuery, (snapshot) => {
+      setStudents(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Student)));
+    }, (error) => {
+      handleFirestoreError(error, OperationType.LIST, 'students');
+    });
+
     // Watch Location
     const watchId = navigator.geolocation.watchPosition(
       (pos) => setLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude, accuracy: pos.coords.accuracy }),
@@ -212,6 +240,8 @@ export function UserDashboard({ profile }: { profile: UserProfile }) {
       unsubJournals();
       unsubHolidays();
       unsubAnnouncements();
+      unsubSchedules();
+      unsubStudents();
       navigator.geolocation.clearWatch(watchId);
     };
   }, [profile.tenant_id, profile.id]);
@@ -296,36 +326,41 @@ export function UserDashboard({ profile }: { profile: UserProfile }) {
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
         
-        // Face detection loop
+        // Face detection loop using requestAnimationFrame for maximum speed
         let consecutiveDetections = 0;
-        const interval = setInterval(async () => {
-          // Use refs to check current state
-          if (!videoRef.current || !isCameraOpenRef.current) {
-            clearInterval(interval);
-            return;
-          }
-          
-          const descriptor = await getFaceDescriptor(videoRef.current);
-          const detected = !!descriptor;
-          setFaceStatus(detected ? 'detected' : 'not_detected');
+        let lastDetectionTime = 0;
+        const detectionInterval = 200; // Detect every 200ms
 
-          if (detected) {
-            consecutiveDetections++;
-            // If detected for 2 consecutive intervals (~1s), start auto-verify
-            if (consecutiveDetections >= 2 && !isProcessingRef.current) {
-              clearInterval(interval);
-              // Small delay to show "Verifying" status
-              setTimeout(() => {
+        const detect = async (time: number) => {
+          if (!videoRef.current || !isCameraOpenRef.current) return;
+
+          if (time - lastDetectionTime > detectionInterval) {
+            lastDetectionTime = time;
+            const descriptor = await getFaceDescriptor(videoRef.current);
+            const detected = !!descriptor;
+            setFaceStatus(detected ? 'detected' : 'not_detected');
+
+            if (detected) {
+              consecutiveDetections++;
+              // If detected for 2 consecutive intervals (~400ms), start auto-verify
+              if (consecutiveDetections >= 2 && !isProcessingRef.current) {
                 if (isCameraOpenRef.current && !isProcessingRef.current) {
                   if (mode === 'check-in') processCheckIn();
                   else processCheckOut();
                 }
-              }, 300);
+                return; // Stop detection loop
+              }
+            } else {
+              consecutiveDetections = 0;
             }
-          } else {
-            consecutiveDetections = 0;
           }
-        }, 500);
+
+          if (isCameraOpenRef.current && !isProcessingRef.current) {
+            requestAnimationFrame(detect);
+          }
+        };
+
+        requestAnimationFrame(detect);
       }
     } catch (err) {
       toast.error('Akses kamera diperlukan untuk verifikasi wajah');
@@ -375,15 +410,25 @@ export function UserDashboard({ profile }: { profile: UserProfile }) {
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
 
-        // Face detection loop
-        const interval = setInterval(async () => {
-          if (!videoRef.current || !isRegisteringFace) {
-            clearInterval(interval);
-            return;
+        // Face detection loop using requestAnimationFrame
+        let lastDetectionTime = 0;
+        const detectionInterval = 200;
+
+        const detect = async (time: number) => {
+          if (!videoRef.current || !isRegisteringFace) return;
+
+          if (time - lastDetectionTime > detectionInterval) {
+            lastDetectionTime = time;
+            const descriptor = await getFaceDescriptor(videoRef.current);
+            setFaceStatus(descriptor ? 'detected' : 'not_detected');
           }
-          const descriptor = await getFaceDescriptor(videoRef.current);
-          setFaceStatus(descriptor ? 'detected' : 'not_detected');
-        }, 500);
+
+          if (isRegisteringFace) {
+            requestAnimationFrame(detect);
+          }
+        };
+
+        requestAnimationFrame(detect);
       }
     } catch (err) {
       toast.error('Akses kamera diperlukan untuk mendaftarkan wajah');
@@ -616,7 +661,11 @@ export function UserDashboard({ profile }: { profile: UserProfile }) {
 
     setIsProcessing(true);
     try {
-      await addDoc(collection(db, 'journals'), {
+      const batch = writeBatch(db);
+      
+      // 1. Save Journal
+      const journalRef = doc(collection(db, 'journals'));
+      batch.set(journalRef, {
         ...newJournal,
         is_draft: isDraft,
         photo_url: tempPhoto || null,
@@ -626,10 +675,44 @@ export function UserDashboard({ profile }: { profile: UserProfile }) {
         status: 'pending',
         createdAt: serverTimestamp()
       });
+
+      // 2. Save Student Attendance
+      Object.entries(studentAttendance).forEach(([studentId, status]) => {
+        const attRef = doc(collection(db, 'student_attendance'));
+        batch.set(attRef, {
+          tenant_id: profile.tenant_id,
+          student_id: studentId,
+          schedule_id: selectedSchedule?.id || null,
+          journal_id: journalRef.id,
+          date: new Date().toISOString().split('T')[0],
+          status,
+          createdAt: serverTimestamp()
+        });
+      });
+
+      // 3. Save Grades
+      Object.entries(studentGrades).forEach(([studentId, score]) => {
+        const gradeRef = doc(collection(db, 'grades'));
+        batch.set(gradeRef, {
+          tenant_id: profile.tenant_id,
+          student_id: studentId,
+          schedule_id: selectedSchedule?.id || null,
+          journal_id: journalRef.id,
+          subject: newJournal.subject,
+          score,
+          createdAt: serverTimestamp()
+        });
+      });
+
+      await batch.commit();
+
       toast.success(isDraft ? 'Jurnal disimpan sebagai draft' : 'Jurnal berhasil dikirim');
       setJournalView('list');
       setNewJournal({ subject: '', class_name: '', time: '', material: '', description: '', is_draft: false });
       setTempPhoto(null);
+      setStudentAttendance({});
+      setStudentGrades({});
+      setSelectedSchedule(null);
     } catch (error) {
       toast.error('Gagal mengirim jurnal');
     } finally {
@@ -1067,9 +1150,7 @@ export function UserDashboard({ profile }: { profile: UserProfile }) {
                   </Button>
                   <Button 
                     onClick={() => {
-                      setNewJournal({ subject: '', class_name: '', time: '', material: '', description: '', is_draft: false });
-                      setTempPhoto(null);
-                      setJournalView('form');
+                      setJournalView('schedules');
                     }}
                     className="h-12 w-12 rounded-2xl bg-green-600 hover:bg-green-700 shadow-xl shadow-green-100 flex items-center justify-center text-white transition-all active:scale-95"
                   >
@@ -1077,6 +1158,203 @@ export function UserDashboard({ profile }: { profile: UserProfile }) {
                   </Button>
                 </div>
               </div>
+
+              {/* SCHEDULES VIEW */}
+              <AnimatePresence>
+                {journalView === 'schedules' && (
+                  <motion.div 
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -20 }}
+                    className="space-y-6"
+                  >
+                    <div className="flex items-center gap-4">
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        onClick={() => setJournalView('list')}
+                        className="h-12 w-12 rounded-2xl border border-gray-100 shadow-sm bg-white text-gray-400 hover:text-gray-900"
+                      >
+                        <ChevronLeft className="h-6 w-6" />
+                      </Button>
+                      <div className="space-y-1">
+                        <h3 className="text-2xl font-black text-gray-900 tracking-tight">Pilih Jadwal</h3>
+                        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-[0.2em]">Pilih kelas untuk mulai mengajar</p>
+                      </div>
+                    </div>
+
+                    <div className="space-y-4">
+                      {schedules.length === 0 ? (
+                        <div className="text-center py-12 bg-gray-50 rounded-[2rem] border-2 border-dashed border-gray-100">
+                          <p className="text-sm font-bold text-gray-400">Belum ada jadwal mengajar.</p>
+                        </div>
+                      ) : (
+                        schedules.map((schedule, idx) => (
+                          <Card 
+                            key={schedule.id}
+                            onClick={() => {
+                              setSelectedSchedule(schedule);
+                              setJournalView('attendance');
+                              // Reset attendance for this session
+                              setStudentAttendance({});
+                            }}
+                            className="border-none shadow-xl shadow-gray-100/50 rounded-[2rem] bg-white p-5 cursor-pointer hover:border-green-100 hover:shadow-green-100/20 transition-all active:scale-[0.98]"
+                          >
+                            <div className="flex justify-between items-start">
+                              <div className="space-y-1">
+                                <Badge className="bg-green-50 text-green-700 border-none text-[10px] font-black uppercase tracking-widest px-2 py-0.5">
+                                  {schedule.class_name}
+                                </Badge>
+                                <h4 className="text-xl font-black text-gray-900">{schedule.subject}</h4>
+                                <div className="flex items-center gap-2 text-[10px] font-bold text-gray-400 uppercase tracking-widest">
+                                  <Clock className="h-3 w-3" />
+                                  {schedule.start_time} - {schedule.end_time}
+                                </div>
+                              </div>
+                              <div className="h-10 w-10 rounded-xl bg-gray-50 flex items-center justify-center text-gray-300">
+                                <ChevronRight className="h-5 w-5" />
+                              </div>
+                            </div>
+                          </Card>
+                        ))
+                      )}
+                    </div>
+                  </motion.div>
+                )}
+
+                {journalView === 'attendance' && selectedSchedule && (
+                  <motion.div 
+                    initial={{ opacity: 0, x: 20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: -20 }}
+                    className="space-y-6"
+                  >
+                    <div className="flex items-center gap-4">
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        onClick={() => setJournalView('schedules')}
+                        className="h-12 w-12 rounded-2xl border border-gray-100 shadow-sm bg-white text-gray-400 hover:text-gray-900"
+                      >
+                        <ChevronLeft className="h-6 w-6" />
+                      </Button>
+                      <div className="space-y-1">
+                        <h3 className="text-2xl font-black text-gray-900 tracking-tight">Absensi Siswa</h3>
+                        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-[0.2em]">{selectedSchedule.class_name} • {selectedSchedule.subject}</p>
+                      </div>
+                    </div>
+
+                    <Card className="border-none shadow-xl shadow-gray-100/50 rounded-[2rem] bg-white overflow-hidden">
+                      <div className="p-4 space-y-4">
+                        {students.filter(s => s.class_name === selectedSchedule.class_name).length === 0 ? (
+                          <div className="text-center py-8 text-gray-400 font-bold text-xs">Belum ada data siswa di kelas ini.</div>
+                        ) : (
+                          students.filter(s => s.class_name === selectedSchedule.class_name).map(student => (
+                            <div key={student.id} className="flex items-center justify-between p-3 rounded-2xl bg-gray-50 border border-gray-100">
+                              <div className="space-y-0.5">
+                                <p className="text-sm font-black text-gray-900">{student.name}</p>
+                                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{student.nis || 'Tanpa NIS'}</p>
+                              </div>
+                              <div className="flex gap-1">
+                                {['H', 'S', 'I', 'A'].map(status => (
+                                  <button
+                                    key={status}
+                                    onClick={() => setStudentAttendance({...studentAttendance, [student.id]: status as any})}
+                                    className={`h-8 w-8 rounded-lg flex items-center justify-center text-[10px] font-black transition-all ${
+                                      studentAttendance[student.id] === status 
+                                        ? status === 'H' ? 'bg-green-500 text-white shadow-lg shadow-green-100' :
+                                          status === 'S' ? 'bg-blue-500 text-white shadow-lg shadow-blue-100' :
+                                          status === 'I' ? 'bg-yellow-500 text-white shadow-lg shadow-yellow-100' :
+                                          'bg-red-500 text-white shadow-lg shadow-red-100'
+                                        : 'bg-white text-gray-400 hover:bg-gray-100'
+                                    }`}
+                                  >
+                                    {status}
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+                          ))
+                        )}
+                      </div>
+                      <div className="p-4 bg-gray-50">
+                        <Button 
+                          onClick={() => setJournalView('grades')}
+                          className="w-full h-14 rounded-2xl bg-green-600 hover:bg-green-700 font-black uppercase tracking-widest text-white shadow-xl shadow-green-100"
+                        >
+                          Lanjut ke Input Nilai
+                        </Button>
+                      </div>
+                    </Card>
+                  </motion.div>
+                )}
+
+                {journalView === 'grades' && selectedSchedule && (
+                  <motion.div 
+                    initial={{ opacity: 0, x: 20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: -20 }}
+                    className="space-y-6"
+                  >
+                    <div className="flex items-center gap-4">
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        onClick={() => setJournalView('attendance')}
+                        className="h-12 w-12 rounded-2xl border border-gray-100 shadow-sm bg-white text-gray-400 hover:text-gray-900"
+                      >
+                        <ChevronLeft className="h-6 w-6" />
+                      </Button>
+                      <div className="space-y-1">
+                        <h3 className="text-2xl font-black text-gray-900 tracking-tight">Input Nilai</h3>
+                        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-[0.2em]">{selectedSchedule.class_name} • {selectedSchedule.subject}</p>
+                      </div>
+                    </div>
+
+                    <Card className="border-none shadow-xl shadow-gray-100/50 rounded-[2rem] bg-white overflow-hidden">
+                      <div className="p-4 space-y-4">
+                        {students.filter(s => s.class_name === selectedSchedule.class_name).length === 0 ? (
+                          <div className="text-center py-8 text-gray-400 font-bold text-xs">Belum ada data siswa di kelas ini.</div>
+                        ) : (
+                          students.filter(s => s.class_name === selectedSchedule.class_name).map(student => (
+                            <div key={student.id} className="flex items-center justify-between p-3 rounded-2xl bg-gray-50 border border-gray-100">
+                              <div className="space-y-0.5">
+                                <p className="text-sm font-black text-gray-900">{student.name}</p>
+                                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{student.nis || 'Tanpa NIS'}</p>
+                              </div>
+                              <div className="w-20">
+                                <Input 
+                                  type="number" 
+                                  placeholder="Nilai"
+                                  className="h-10 rounded-xl bg-white border-gray-100 text-center font-bold"
+                                  value={studentGrades[student.id] || ''}
+                                  onChange={e => setStudentGrades({...studentGrades, [student.id]: parseInt(e.target.value)})}
+                                />
+                              </div>
+                            </div>
+                          ))
+                        )}
+                      </div>
+                      <div className="p-4 bg-gray-50">
+                        <Button 
+                          onClick={() => {
+                            setNewJournal({
+                              ...newJournal,
+                              subject: selectedSchedule.subject,
+                              class_name: selectedSchedule.class_name,
+                              time: `${selectedSchedule.start_time} - ${selectedSchedule.end_time}`
+                            });
+                            setJournalView('form');
+                          }}
+                          className="w-full h-14 rounded-2xl bg-green-600 hover:bg-green-700 font-black uppercase tracking-widest text-white shadow-xl shadow-green-100"
+                        >
+                          Lanjut ke Jurnal
+                        </Button>
+                      </div>
+                    </Card>
+                  </motion.div>
+                )}
+              </AnimatePresence>
 
               {/* FILTER BAR */}
               <AnimatePresence>

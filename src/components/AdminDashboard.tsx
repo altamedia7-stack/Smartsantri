@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { db, storage } from '../firebase';
 import { collection, onSnapshot, addDoc, updateDoc, deleteDoc, doc, setDoc, serverTimestamp, query, where, orderBy, getDocs } from 'firebase/firestore';
-import { UserProfile, AttendanceRecord, Tenant, Journal, Holiday, Announcement } from '../types';
+import { UserProfile, AttendanceRecord, Tenant, Journal, Holiday, Announcement, Student, Schedule } from '../types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -70,12 +70,16 @@ export function AdminDashboard({ profile }: { profile: UserProfile }) {
   const [exportOptions, setExportOptions] = useState({
     scope: 'all', // 'current' | 'all'
     style: 'employee', // 'default' | 'employee' | 'date'
-    pageWise: true
+    pageWise: true,
+    includeStudentAttendance: false,
+    includeGrades: false
   });
   const [pdfExportOptions, setPdfExportOptions] = useState({
     scope: 'all',
     style: 'default', // 'default' | 'employee'
-    includeSummary: true
+    includeSummary: true,
+    includeStudentAttendance: false,
+    includeGrades: false
   });
   const [tenantSettings, setTenantSettings] = useState({
     name: '',
@@ -93,6 +97,21 @@ export function AdminDashboard({ profile }: { profile: UserProfile }) {
   const [showAllUsers, setShowAllUsers] = useState(false);
   const [showAllLogs, setShowAllLogs] = useState(false);
   const [showAllJournals, setShowAllJournals] = useState(false);
+  const [students, setStudents] = useState<Student[]>([]);
+  const [schedules, setSchedules] = useState<Schedule[]>([]);
+  const [studentAttendance, setStudentAttendance] = useState<any[]>([]);
+  const [grades, setGrades] = useState<any[]>([]);
+  const [isAddStudentOpen, setIsAddStudentOpen] = useState(false);
+  const [isAddScheduleOpen, setIsAddScheduleOpen] = useState(false);
+  const [newStudent, setNewStudent] = useState({ name: '', nis: '', class_name: '' });
+  const [newSchedule, setNewSchedule] = useState({ 
+    user_id: '', 
+    subject: '', 
+    class_name: '', 
+    day: 1, 
+    start_time: '07:00', 
+    end_time: '09:00' 
+  });
 
   const getDaysInMonth = (date: Date) => {
     const year = date.getFullYear();
@@ -235,6 +254,54 @@ export function AdminDashboard({ profile }: { profile: UserProfile }) {
       handleFirestoreError(error, OperationType.LIST, 'announcements');
     });
 
+    // Fetch Students
+    const studentsQuery = query(
+      collection(db, 'students'),
+      where('tenant_id', '==', profile.tenant_id),
+      orderBy('class_name', 'asc'),
+      orderBy('name', 'asc')
+    );
+    const unsubStudents = onSnapshot(studentsQuery, (snapshot) => {
+      setStudents(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Student)));
+    }, (error) => {
+      handleFirestoreError(error, OperationType.LIST, 'students');
+    });
+
+    // Fetch Schedules
+    const schedulesQuery = query(
+      collection(db, 'schedules'),
+      where('tenant_id', '==', profile.tenant_id),
+      orderBy('day', 'asc'),
+      orderBy('start_time', 'asc')
+    );
+    const unsubSchedules = onSnapshot(schedulesQuery, (snapshot) => {
+      setSchedules(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Schedule)));
+    }, (error) => {
+      handleFirestoreError(error, OperationType.LIST, 'schedules');
+    });
+
+    // Fetch Student Attendance
+    const studentAttendanceQuery = query(
+      collection(db, 'student_attendance'),
+      where('tenant_id', '==', profile.tenant_id)
+    );
+    const unsubStudentAttendance = onSnapshot(studentAttendanceQuery, (snapshot) => {
+      setStudentAttendance(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+    }, (error) => {
+      handleFirestoreError(error, OperationType.LIST, 'student_attendance');
+    });
+
+    // Fetch Grades
+    const gradesQuery = query(
+      collection(db, 'grades'),
+      where('tenant_id', '==', profile.tenant_id)
+    );
+    const unsubGrades = onSnapshot(gradesQuery, (snapshot) => {
+      setGrades(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+    }, (error) => {
+      handleFirestoreError(error, OperationType.LIST, 'grades');
+    });
+
     return () => {
       unsubTenant();
       unsubUsers();
@@ -242,8 +309,83 @@ export function AdminDashboard({ profile }: { profile: UserProfile }) {
       unsubJournals();
       unsubHolidays();
       unsubAnnouncements();
+      unsubStudents();
+      unsubSchedules();
+      unsubStudentAttendance();
+      unsubGrades();
     };
   }, [profile.tenant_id]);
+
+  const handleAddStudent = async () => {
+    if (!newStudent.name || !newStudent.class_name) {
+      toast.error('Nama dan Kelas wajib diisi');
+      return;
+    }
+    setIsSubmitting(true);
+    try {
+      await addDoc(collection(db, 'students'), {
+        ...newStudent,
+        tenant_id: profile.tenant_id,
+        createdAt: serverTimestamp()
+      });
+      setIsAddStudentOpen(false);
+      setNewStudent({ name: '', nis: '', class_name: '' });
+      toast.success('Siswa berhasil ditambahkan');
+    } catch (error) {
+      toast.error('Gagal menambahkan siswa');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleAddSchedule = async () => {
+    if (!newSchedule.user_id || !newSchedule.subject || !newSchedule.class_name) {
+      toast.error('Semua kolom wajib diisi');
+      return;
+    }
+    setIsSubmitting(true);
+    try {
+      await addDoc(collection(db, 'schedules'), {
+        ...newSchedule,
+        tenant_id: profile.tenant_id,
+        createdAt: serverTimestamp()
+      });
+      setIsAddScheduleOpen(false);
+      setNewSchedule({ 
+        user_id: '', 
+        subject: '', 
+        class_name: '', 
+        day: 1, 
+        start_time: '07:00', 
+        end_time: '09:00' 
+      });
+      toast.success('Jadwal berhasil ditambahkan');
+    } catch (error) {
+      toast.error('Gagal menambahkan jadwal');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const deleteStudent = async (id: string) => {
+    if (!confirm('Hapus siswa ini?')) return;
+    try {
+      await deleteDoc(doc(db, 'students', id));
+      toast.success('Siswa dihapus');
+    } catch (error) {
+      toast.error('Gagal menghapus siswa');
+    }
+  };
+
+  const deleteSchedule = async (id: string) => {
+    if (!confirm('Hapus jadwal ini?')) return;
+    try {
+      await deleteDoc(doc(db, 'schedules', id));
+      toast.success('Jadwal dihapus');
+    } catch (error) {
+      toast.error('Gagal menghapus jadwal');
+    }
+  };
 
   const handleAddUser = async () => {
     if (!newUser.name || !newUser.email || !newUser.password) {
@@ -676,8 +818,11 @@ export function AdminDashboard({ profile }: { profile: UserProfile }) {
               // For date-wise, we check if the specific user has a holiday
               const user = users[R-7];
               if (!user) continue;
+              const globalHoliday = holidays.find(h => !h.user_id && (h.date === dateStr || h.day === dayOfWeek));
               const userHoliday = holidays.find(h => h.user_id === user.id && (h.date === dateStr || h.day === dayOfWeek));
-              if (isGlobalHoliday || userHoliday) {
+              const isWeeklyOff = tenant?.off_days?.includes(dayOfWeek);
+              
+              if (globalHoliday || userHoliday || isWeeklyOff) {
                 cell.s = holidayStyle;
               } else {
                 cell.s = normalStyle;
@@ -686,9 +831,54 @@ export function AdminDashboard({ profile }: { profile: UserProfile }) {
           }
         }
 
-        const sheetName = currentDate.toLocaleDateString('id-ID').replace(/[/]/g, '-');
+        const sheetName = dateStr;
         XLSX.utils.book_append_sheet(workbook, ws, sheetName);
         currentDate.setDate(currentDate.getDate() + 1);
+      }
+    }
+
+    // Add Student Attendance Sheet if requested
+    if (exportOptions.includeStudentAttendance) {
+      const studentAttData = studentAttendance.filter(att => {
+        const attDate = new Date(att.date);
+        const startDate = new Date(exportStartDate);
+        const endDate = new Date(exportEndDate);
+        endDate.setHours(23, 59, 59, 999);
+        return attDate >= startDate && attDate <= endDate;
+      }).map(att => {
+        const student = students.find(s => s.id === att.student_id);
+        const schedule = schedules.find(sch => sch.id === att.schedule_id);
+        return {
+          'Tanggal': att.date,
+          'Siswa': student?.name || 'Unknown',
+          'Kelas': student?.class_name || 'Unknown',
+          'Mapel': schedule?.subject || 'Unknown',
+          'Status': att.status === 'H' ? 'Hadir' : att.status === 'S' ? 'Sakit' : att.status === 'I' ? 'Izin' : 'Alpha'
+        };
+      });
+
+      if (studentAttData.length > 0) {
+        const ws = XLSX.utils.json_to_sheet(studentAttData);
+        XLSX.utils.book_append_sheet(workbook, ws, "Absensi Siswa");
+      }
+    }
+
+    // Add Grades Sheet if requested
+    if (exportOptions.includeGrades) {
+      const gradesData = grades.map(g => {
+        const student = students.find(s => s.id === g.student_id);
+        return {
+          'Tanggal': g.createdAt?.toDate().toLocaleDateString('id-ID'),
+          'Siswa': student?.name || 'Unknown',
+          'Kelas': student?.class_name || 'Unknown',
+          'Mapel': g.subject,
+          'Nilai': g.score
+        };
+      });
+
+      if (gradesData.length > 0) {
+        const ws = XLSX.utils.json_to_sheet(gradesData);
+        XLSX.utils.book_append_sheet(workbook, ws, "Nilai Siswa");
       }
     }
 
@@ -878,6 +1068,71 @@ export function AdminDashboard({ profile }: { profile: UserProfile }) {
       }
 
       doc.save(`Kehadiran_${tenant?.name || 'Laporan'}_${exportStartDate}_${exportEndDate}.pdf`);
+
+      // 3. Optional Student Attendance Page
+      if (pdfExportOptions.includeStudentAttendance) {
+        doc.addPage();
+        const startY = drawHeader(`Laporan Absensi Siswa - ${tenant?.name || 'Organisasi'}`);
+        
+        const studentAttData = studentAttendance.filter(att => {
+          const attDate = new Date(att.date);
+          const startDate = new Date(exportStartDate);
+          const endDate = new Date(exportEndDate);
+          endDate.setHours(23, 59, 59, 999);
+          return attDate >= startDate && attDate <= endDate;
+        });
+
+        const tableColumn = ["Tanggal", "Siswa", "Kelas", "Mapel", "Status"];
+        const tableRows = studentAttData.map(att => {
+          const student = students.find(s => s.id === att.student_id);
+          const schedule = schedules.find(sch => sch.id === att.schedule_id);
+          return [
+            att.date,
+            student?.name || 'Unknown',
+            student?.class_name || 'Unknown',
+            schedule?.subject || 'Unknown',
+            att.status === 'H' ? 'Hadir' : att.status === 'S' ? 'Sakit' : att.status === 'I' ? 'Izin' : 'Alpha'
+          ];
+        });
+
+        autoTable(doc, {
+          head: [tableColumn],
+          body: tableRows,
+          startY: startY,
+          theme: 'grid',
+          styles: { fontSize: 8 },
+          headStyles: { fillColor: [22, 163, 74] }
+        });
+      }
+
+      // 4. Optional Grades Page
+      if (pdfExportOptions.includeGrades) {
+        doc.addPage();
+        const startY = drawHeader(`Laporan Nilai Siswa - ${tenant?.name || 'Organisasi'}`);
+        
+        const tableColumn = ["Tanggal", "Siswa", "Kelas", "Mapel", "Nilai"];
+        const tableRows = grades.map(g => {
+          const student = students.find(s => s.id === g.student_id);
+          return [
+            g.createdAt?.toDate().toLocaleDateString('id-ID'),
+            student?.name || 'Unknown',
+            student?.class_name || 'Unknown',
+            g.subject,
+            g.score
+          ];
+        });
+
+        autoTable(doc, {
+          head: [tableColumn],
+          body: tableRows,
+          startY: startY,
+          theme: 'grid',
+          styles: { fontSize: 8 },
+          headStyles: { fillColor: [22, 163, 74] }
+        });
+      }
+
+      doc.save(`Laporan_Lengkap_${tenant?.name || 'Organisasi'}_${exportStartDate}.pdf`);
       toast.success('PDF berhasil diunduh');
       setIsPDFExportDialogOpen(false);
     } catch (error) {
@@ -1355,6 +1610,24 @@ export function AdminDashboard({ profile }: { profile: UserProfile }) {
               />
               <Label htmlFor="include-summary" className="text-sm font-normal">Include Summary Header</Label>
             </div>
+
+            <div className="flex items-center space-x-2">
+              <Checkbox 
+                id="pdf-include-student-att" 
+                checked={pdfExportOptions.includeStudentAttendance}
+                onCheckedChange={(checked) => setPdfExportOptions({...pdfExportOptions, includeStudentAttendance: !!checked})}
+              />
+              <Label htmlFor="pdf-include-student-att" className="text-sm font-normal">Include Student Attendance</Label>
+            </div>
+
+            <div className="flex items-center space-x-2">
+              <Checkbox 
+                id="pdf-include-grades" 
+                checked={pdfExportOptions.includeGrades}
+                onCheckedChange={(checked) => setPdfExportOptions({...pdfExportOptions, includeGrades: !!checked})}
+              />
+              <Label htmlFor="pdf-include-grades" className="text-sm font-normal">Include Student Grades</Label>
+            </div>
           </div>
           <DialogFooter className="gap-2 sm:gap-0">
             <Button onClick={exportToPDF} className="bg-red-600 hover:bg-red-700 text-white">Confirm PDF Export</Button>
@@ -1415,6 +1688,24 @@ export function AdminDashboard({ profile }: { profile: UserProfile }) {
                 </div>
               </div>
             </div>
+
+            <div className="flex items-center space-x-2">
+              <Checkbox 
+                id="excel-include-student-att" 
+                checked={exportOptions.includeStudentAttendance}
+                onCheckedChange={(checked) => setExportOptions({...exportOptions, includeStudentAttendance: !!checked})}
+              />
+              <Label htmlFor="excel-include-student-att" className="text-sm font-normal">Include Student Attendance</Label>
+            </div>
+
+            <div className="flex items-center space-x-2">
+              <Checkbox 
+                id="excel-include-grades" 
+                checked={exportOptions.includeGrades}
+                onCheckedChange={(checked) => setExportOptions({...exportOptions, includeGrades: !!checked})}
+              />
+              <Label htmlFor="excel-include-grades" className="text-sm font-normal">Include Student Grades</Label>
+            </div>
           </div>
           <DialogFooter className="gap-2 sm:gap-0">
             <Button onClick={exportToExcel} className="bg-green-600 hover:bg-green-700">Confirm</Button>
@@ -1427,6 +1718,8 @@ export function AdminDashboard({ profile }: { profile: UserProfile }) {
         <TabsList>
           <TabsTrigger value="overview">Ringkasan & Absensi</TabsTrigger>
           <TabsTrigger value="calendar">Kalender</TabsTrigger>
+          <TabsTrigger value="students">Siswa</TabsTrigger>
+          <TabsTrigger value="schedules">Jadwal</TabsTrigger>
           <TabsTrigger value="journals">Jurnal Guru</TabsTrigger>
           <TabsTrigger value="announcements">Pengumuman</TabsTrigger>
           <TabsTrigger value="settings">Pengaturan</TabsTrigger>
@@ -1727,6 +2020,185 @@ export function AdminDashboard({ profile }: { profile: UserProfile }) {
                   );
                 })}
               </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="students">
+          <Card className="border-none shadow-sm">
+            <CardHeader className="flex flex-row items-center justify-between">
+              <div>
+                <CardTitle>Manajemen Siswa</CardTitle>
+                <CardDescription>Kelola data siswa per kelas</CardDescription>
+              </div>
+              <Dialog open={isAddStudentOpen} onOpenChange={setIsAddStudentOpen}>
+                <DialogTrigger render={<Button className="bg-blue-600 hover:bg-blue-700" />}>
+                  <Plus className="mr-2 h-4 w-4" /> Tambah Siswa
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Tambah Siswa Baru</DialogTitle>
+                  </DialogHeader>
+                  <div className="grid gap-4 py-4">
+                    <div className="grid gap-2">
+                      <Label>Nama Lengkap</Label>
+                      <Input value={newStudent.name} onChange={e => setNewStudent({...newStudent, name: e.target.value})} />
+                    </div>
+                    <div className="grid gap-2">
+                      <Label>NIS (Opsional)</Label>
+                      <Input value={newStudent.nis} onChange={e => setNewStudent({...newStudent, nis: e.target.value})} />
+                    </div>
+                    <div className="grid gap-2">
+                      <Label>Kelas</Label>
+                      <Input value={newStudent.class_name} onChange={e => setNewStudent({...newStudent, class_name: e.target.value})} placeholder="Contoh: X-IPA-1" />
+                    </div>
+                  </div>
+                  <DialogFooter>
+                    <Button onClick={handleAddStudent} disabled={isSubmitting} className="bg-blue-600 hover:bg-blue-700">
+                      Simpan Siswa
+                    </Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
+            </CardHeader>
+            <CardContent>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Nama</TableHead>
+                    <TableHead>NIS</TableHead>
+                    <TableHead>Kelas</TableHead>
+                    <TableHead className="text-right">Aksi</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {students.map(student => (
+                    <TableRow key={student.id}>
+                      <TableCell className="font-medium">{student.name}</TableCell>
+                      <TableCell>{student.nis || '-'}</TableCell>
+                      <TableCell>{student.class_name}</TableCell>
+                      <TableCell className="text-right">
+                        <Button variant="ghost" size="icon" className="text-red-500" onClick={() => deleteStudent(student.id)}>
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                  {students.length === 0 && (
+                    <TableRow>
+                      <TableCell colSpan={4} className="h-24 text-center text-gray-500">Belum ada data siswa.</TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="schedules">
+          <Card className="border-none shadow-sm">
+            <CardHeader className="flex flex-row items-center justify-between">
+              <div>
+                <CardTitle>Jadwal Mengajar</CardTitle>
+                <CardDescription>Kelola jadwal mengajar guru</CardDescription>
+              </div>
+              <Dialog open={isAddScheduleOpen} onOpenChange={setIsAddScheduleOpen}>
+                <DialogTrigger render={<Button className="bg-blue-600 hover:bg-blue-700" />}>
+                  <Plus className="mr-2 h-4 w-4" /> Tambah Jadwal
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Tambah Jadwal Baru</DialogTitle>
+                  </DialogHeader>
+                  <div className="grid gap-4 py-4">
+                    <div className="grid gap-2">
+                      <Label>Guru</Label>
+                      <Select value={newSchedule.user_id} onValueChange={v => setNewSchedule({...newSchedule, user_id: v})}>
+                        <SelectTrigger><SelectValue placeholder="Pilih Guru" /></SelectTrigger>
+                        <SelectContent>
+                          {users.filter(u => u.role === 'USER').map(u => (
+                            <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="grid gap-2">
+                      <Label>Mata Pelajaran</Label>
+                      <Input value={newSchedule.subject} onChange={e => setNewSchedule({...newSchedule, subject: e.target.value})} />
+                    </div>
+                    <div className="grid gap-2">
+                      <Label>Kelas</Label>
+                      <Input value={newSchedule.class_name} onChange={e => setNewSchedule({...newSchedule, class_name: e.target.value})} />
+                    </div>
+                    <div className="grid gap-2">
+                      <Label>Hari</Label>
+                      <Select value={newSchedule.day.toString()} onValueChange={v => setNewSchedule({...newSchedule, day: parseInt(v)})}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="1">Senin</SelectItem>
+                          <SelectItem value="2">Selasa</SelectItem>
+                          <SelectItem value="3">Rabu</SelectItem>
+                          <SelectItem value="4">Kamis</SelectItem>
+                          <SelectItem value="5">Jumat</SelectItem>
+                          <SelectItem value="6">Sabtu</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="flex gap-4">
+                      <div className="grid gap-2 flex-1">
+                        <Label>Jam Mulai</Label>
+                        <Input type="time" value={newSchedule.start_time} onChange={e => setNewSchedule({...newSchedule, start_time: e.target.value})} />
+                      </div>
+                      <div className="grid gap-2 flex-1">
+                        <Label>Jam Selesai</Label>
+                        <Input type="time" value={newSchedule.end_time} onChange={e => setNewSchedule({...newSchedule, end_time: e.target.value})} />
+                      </div>
+                    </div>
+                  </div>
+                  <DialogFooter>
+                    <Button onClick={handleAddSchedule} disabled={isSubmitting} className="bg-blue-600 hover:bg-blue-700">
+                      Simpan Jadwal
+                    </Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
+            </CardHeader>
+            <CardContent>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Hari</TableHead>
+                    <TableHead>Waktu</TableHead>
+                    <TableHead>Guru</TableHead>
+                    <TableHead>Mapel</TableHead>
+                    <TableHead>Kelas</TableHead>
+                    <TableHead className="text-right">Aksi</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {schedules.map(schedule => (
+                    <TableRow key={schedule.id}>
+                      <TableCell className="font-medium">
+                        {['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'][schedule.day]}
+                      </TableCell>
+                      <TableCell>{schedule.start_time} - {schedule.end_time}</TableCell>
+                      <TableCell>{users.find(u => u.id === schedule.user_id)?.name}</TableCell>
+                      <TableCell>{schedule.subject}</TableCell>
+                      <TableCell>{schedule.class_name}</TableCell>
+                      <TableCell className="text-right">
+                        <Button variant="ghost" size="icon" className="text-red-500" onClick={() => deleteSchedule(schedule.id)}>
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                  {schedules.length === 0 && (
+                    <TableRow>
+                      <TableCell colSpan={6} className="h-24 text-center text-gray-500">Belum ada jadwal.</TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
             </CardContent>
           </Card>
         </TabsContent>
