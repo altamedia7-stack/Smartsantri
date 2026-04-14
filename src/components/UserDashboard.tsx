@@ -679,17 +679,12 @@ export function UserDashboard({ profile }: { profile: UserProfile }) {
   const todayHoliday = holidays.find(h => h.date === todayStr);
   const isWeeklyOff = tenant?.off_days?.includes(new Date().getDay());
   
-  const filteredHistory = history.filter(log => {
+  const baseFilteredHistory = history.filter(log => {
     const logDate = log.check_in?.toDate();
     if (!logDate) return false;
     
     const matchMonth = logDate.getMonth() === historyFilterMonth;
     const matchYear = logDate.getFullYear() === historyFilterYear;
-    
-    let matchStatus = true;
-    if (historyFilterStatus === 'hadir') matchStatus = log.status === 'valid';
-    if (historyFilterStatus === 'terlambat') matchStatus = log.status === 'suspicious';
-    if (historyFilterStatus === 'alpha') matchStatus = log.status === 'rejected';
     
     let matchDate = true;
     if (historySearchDate) {
@@ -699,24 +694,43 @@ export function UserDashboard({ profile }: { profile: UserProfile }) {
                   logDate.getFullYear() === searchDateObj.getFullYear();
     }
     
-    return matchMonth && matchYear && matchStatus && matchDate;
+    return matchMonth && matchYear && matchDate;
   });
 
-  const totalHadir = filteredHistory.filter(h => h.status === 'valid' && !h.is_late).length;
-  const totalTerlambat = filteredHistory.filter(h => h.is_late && h.status !== 'rejected').length;
-  const totalMencurigakan = filteredHistory.filter(h => h.status === 'suspicious').length;
-  const totalAlpha = filteredHistory.filter(h => h.status === 'rejected').length;
+  const filteredHistory = baseFilteredHistory.filter(log => {
+    let matchStatus = true;
+    if (historyFilterStatus === 'hadir') matchStatus = log.status === 'valid' && !log.is_late;
+    if (historyFilterStatus === 'terlambat') matchStatus = !!log.is_late && log.status !== 'rejected';
+    if (historyFilterStatus === 'mencurigakan') matchStatus = log.status === 'suspicious';
+    if (historyFilterStatus === 'alpha') matchStatus = log.status === 'rejected';
+    return matchStatus;
+  });
+
+  const totalHadir = baseFilteredHistory.filter(h => h.status === 'valid' && !h.is_late).length;
+  const totalTerlambat = baseFilteredHistory.filter(h => !!h.is_late && h.status !== 'rejected').length;
+  const totalMencurigakan = baseFilteredHistory.filter(h => h.status === 'suspicious').length;
+  const totalRejected = baseFilteredHistory.filter(h => h.status === 'rejected').length;
   
   const getWorkingDays = (year: number, month: number) => {
     let days = 0;
-    const date = new Date(year, month, 1);
-    while (date.getMonth() === month) {
-      if (date.getDay() !== 0 && date.getDay() !== 6) days++;
-      date.setDate(date.getDate() + 1);
+    const today = new Date();
+    const isCurrentMonth = today.getFullYear() === year && today.getMonth() === month;
+    const lastDay = isCurrentMonth ? today.getDate() : new Date(year, month + 1, 0).getDate();
+    
+    for (let d = 1; d <= lastDay; d++) {
+      const date = new Date(year, month, d);
+      const dayOfWeek = date.getDay();
+      const isOffDay = tenant?.off_days?.includes(dayOfWeek);
+      const isHoliday = holidays.some(h => !h.user_id && h.date === date.toISOString().split('T')[0]);
+      
+      if (!isOffDay && !isHoliday) days++;
     }
     return days;
   };
   const hariKerja = getWorkingDays(historyFilterYear, historyFilterMonth);
+  
+  // Alpha = Hari Kerja - (Hadir + Terlambat + Mencurigakan)
+  const totalAlpha = Math.max(0, hariKerja - (totalHadir + totalTerlambat + totalMencurigakan));
 
   const handleExportHistory = () => {
     if (filteredHistory.length === 0) {
@@ -1517,10 +1531,20 @@ export function UserDashboard({ profile }: { profile: UserProfile }) {
                 <div className="rounded-3xl bg-white border border-gray-100 p-4 shadow-sm flex flex-col justify-between">
                   <div className="flex items-center gap-2 mb-2">
                     <div className="h-2 w-2 rounded-full bg-green-500" />
-                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Total Hadir</p>
+                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Tepat Waktu</p>
                   </div>
                   <div className="flex items-end gap-1">
                     <span className="text-3xl font-black text-gray-900 leading-none">{totalHadir}</span>
+                    <span className="text-[10px] font-bold text-gray-500 mb-1">HARI</span>
+                  </div>
+                </div>
+                <div className="rounded-3xl bg-white border border-gray-100 p-4 shadow-sm flex flex-col justify-between">
+                  <div className="flex items-center gap-2 mb-2">
+                    <div className="h-2 w-2 rounded-full bg-orange-500" />
+                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Terlambat</p>
+                  </div>
+                  <div className="flex items-end gap-1">
+                    <span className="text-3xl font-black text-gray-900 leading-none">{totalTerlambat}</span>
                     <span className="text-[10px] font-bold text-gray-500 mb-1">HARI</span>
                   </div>
                 </div>
@@ -1537,21 +1561,23 @@ export function UserDashboard({ profile }: { profile: UserProfile }) {
                 <div className="rounded-3xl bg-white border border-gray-100 p-4 shadow-sm flex flex-col justify-between">
                   <div className="flex items-center gap-2 mb-2">
                     <div className="h-2 w-2 rounded-full bg-red-500" />
-                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Tidak Hadir</p>
+                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Alpha</p>
                   </div>
                   <div className="flex items-end gap-1">
                     <span className="text-3xl font-black text-gray-900 leading-none">{totalAlpha}</span>
                     <span className="text-[10px] font-bold text-gray-500 mb-1">HARI</span>
                   </div>
                 </div>
-                <div className="rounded-3xl bg-white border border-gray-100 p-4 shadow-sm flex flex-col justify-between">
-                  <div className="flex items-center gap-2 mb-2">
-                    <div className="h-2 w-2 rounded-full bg-blue-500" />
-                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Hari Kerja</p>
-                  </div>
-                  <div className="flex items-end gap-1">
-                    <span className="text-3xl font-black text-gray-900 leading-none">{hariKerja}</span>
-                    <span className="text-[10px] font-bold text-gray-500 mb-1">HARI</span>
+                <div className="rounded-3xl bg-white border border-gray-100 p-4 shadow-sm flex flex-col justify-between col-span-2">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <div className="h-2 w-2 rounded-full bg-blue-500" />
+                      <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Total Hari Kerja (s/d Hari Ini)</p>
+                    </div>
+                    <div className="flex items-end gap-1">
+                      <span className="text-2xl font-black text-gray-900 leading-none">{hariKerja}</span>
+                      <span className="text-[10px] font-bold text-gray-500">HARI</span>
+                    </div>
                   </div>
                 </div>
               </div>
