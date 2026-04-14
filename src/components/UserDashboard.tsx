@@ -82,6 +82,9 @@ export function UserDashboard({ profile }: { profile: UserProfile }) {
   const [tempPhoto, setTempPhoto] = useState<string | null>(null);
   const [cameraMode, setCameraMode] = useState<'check-in' | 'check-out' | null>(null);
   
+  const [faceDetectionCount, setFaceDetectionCount] = useState(0);
+  const [autoVerifyCountdown, setAutoVerifyCountdown] = useState<number | null>(null);
+  
   const [activeTab, setActiveTab] = useState<'home' | 'journal' | 'history' | 'profile'>('home');
   const [showPersonalInfo, setShowPersonalInfo] = useState(false);
   const [showAccountSettings, setShowAccountSettings] = useState(false);
@@ -274,19 +277,36 @@ export function UserDashboard({ profile }: { profile: UserProfile }) {
     setCameraMode(mode);
     setIsCameraOpen(true);
     setFaceStatus('detecting');
+    setFaceDetectionCount(0);
+    setAutoVerifyCountdown(null);
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ video: true });
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
         
         // Face detection loop
+        let consecutiveDetections = 0;
         const interval = setInterval(async () => {
           if (!videoRef.current || !isCameraOpen) {
             clearInterval(interval);
             return;
           }
           const descriptor = await getFaceDescriptor(videoRef.current);
-          setFaceStatus(descriptor ? 'detected' : 'not_detected');
+          const detected = !!descriptor;
+          setFaceStatus(detected ? 'detected' : 'not_detected');
+
+          if (detected) {
+            consecutiveDetections++;
+            // If detected for 3 consecutive intervals (~1.5s), start auto-verify
+            if (consecutiveDetections >= 3 && !isProcessing) {
+              clearInterval(interval);
+              setAutoVerifyCountdown(0); // Trigger immediate or short delay
+              if (mode === 'check-in') processCheckIn();
+              else processCheckOut();
+            }
+          } else {
+            consecutiveDetections = 0;
+          }
         }, 500);
       }
     } catch (err) {
@@ -2310,7 +2330,7 @@ export function UserDashboard({ profile }: { profile: UserProfile }) {
                 <div className="flex items-center justify-center gap-2">
                   <div className={`h-2 w-2 rounded-full ${faceStatus === 'detected' ? 'bg-green-500' : 'bg-red-500'} animate-pulse`} />
                   <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">
-                    {faceStatus === 'detected' ? 'Wajah Terdeteksi' : 'Mencari Wajah...'}
+                    {isProcessing ? 'Memproses...' : faceStatus === 'detected' ? 'Wajah Terdeteksi - Memverifikasi...' : 'Mencari Wajah...'}
                   </p>
                 </div>
               </div>
