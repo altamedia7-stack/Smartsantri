@@ -436,7 +436,11 @@ export function UserDashboard({ profile }: { profile: UserProfile }) {
         reason = locStatus.reason || 'Validasi lokasi gagal';
       } else if (locStatus.isSuspicious || !faceMatch) {
         status = 'suspicious';
-        reason = !faceMatch ? 'Wajah tidak cocok' : locStatus.reason || 'Aktivitas mencurigakan';
+        if (!faceMatch) {
+          reason = 'Wajah tidak cocok';
+        } else {
+          reason = locStatus.reason || 'Lokasi mencurigakan';
+        }
       }
 
       // 4. Save Record
@@ -518,25 +522,29 @@ export function UserDashboard({ profile }: { profile: UserProfile }) {
       }
 
       // 3. Determine if suspicious
-      const isSuspicious = !locStatus.isValid || locStatus.isSuspicious || !faceMatch;
-      const reason = !faceMatch ? 'Wajah tidak cocok' : locStatus.reason || 'Verifikasi lokasi gagal';
+      let isSuspicious = !locStatus.isValid || locStatus.isSuspicious || !faceMatch;
+      let status: 'valid' | 'suspicious' | 'rejected' = isSuspicious ? (locStatus.isValid ? 'suspicious' : 'rejected') : 'valid';
+      
+      let reason = '';
+      if (!locStatus.isValid) {
+        reason = locStatus.reason || 'Lokasi di luar jangkauan';
+      } else if (locStatus.isSuspicious) {
+        reason = locStatus.reason || 'Lokasi mencurigakan';
+      } else if (!faceMatch) {
+        reason = 'Wajah tidak cocok';
+      }
 
       await updateDoc(doc(db, 'attendance', lastLog.id), {
         check_out: serverTimestamp(),
         check_out_lat: location.lat,
         check_out_lng: location.lng,
-        check_out_status: isSuspicious ? 'suspicious' : 'valid',
-        check_out_reason: isSuspicious ? reason : ''
+        check_out_status: status,
+        check_out_reason: reason
       });
 
-      if (!isSuspicious) toast.success('Check-out berhasil!');
-      else {
-        if (!faceMatch) {
-          toast.warning('Check-out berhasil namun wajah tidak cocok. Pastikan pencahayaan cukup atau daftar ulang wajah.');
-        } else {
-          toast.warning('Check-out berhasil namun ditandai: ' + reason);
-        }
-      }
+      if (status === 'valid') toast.success('Check-out berhasil!');
+      else if (status === 'suspicious') toast.warning('Check-out ditandai mencurigakan: ' + reason);
+      else toast.error('Check-out ditolak: ' + reason);
 
       setIsCameraOpen(false);
       const stream = videoRef.current?.srcObject as MediaStream;

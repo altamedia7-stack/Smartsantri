@@ -35,15 +35,38 @@ export async function validateLocation(
   let isSuspicious = false;
   let reason = '';
 
-  // Anti-fake GPS checks
+  // 1. Accuracy Check (Detection of low quality or potentially spoofed signals)
+  // Accuracy > 100m is usually too poor for attendance
   if (accuracy > 100) {
-    isSuspicious = true;
-    reason = 'Low GPS accuracy (>100m)';
+    return { 
+      isValid: false, 
+      isSuspicious: true, 
+      reason: `Akurasi GPS terlalu rendah (${Math.round(accuracy)}m). Pastikan Anda berada di luar ruangan atau dekat jendela.`, 
+      distance 
+    };
   }
 
-  // Basic radius check
+  // 2. Suspiciously Perfect Accuracy (Some mock apps return exactly 0 or 1)
+  if (accuracy <= 1) {
+    isSuspicious = true;
+    reason = 'Sinyal GPS mencurigakan (Akurasi terlalu sempurna). Harap gunakan GPS asli.';
+  }
+
+  // 3. Radius Check
   if (distance > radius) {
-    return { isValid: false, isSuspicious, reason: 'Outside allowed area', distance };
+    return { 
+      isValid: false, 
+      isSuspicious, 
+      reason: `Anda berada di luar jangkauan (${Math.round(distance)}m dari lokasi). Jarak maksimal adalah ${radius}m.`, 
+      distance 
+    };
+  }
+
+  // 4. Suspiciously high accuracy but not perfect (e.g. 5-10m is normal, but constant 1.00000001 is weird)
+  // This is a bit harder to detect without history, but we can flag very low accuracy as suspicious
+  if (accuracy < 3 && !isSuspicious) {
+    isSuspicious = true;
+    reason = 'Akurasi GPS sangat tinggi, terdeteksi potensi penggunaan Mock Location.';
   }
 
   return { isValid: true, isSuspicious, reason, distance };
