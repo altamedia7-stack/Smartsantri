@@ -595,7 +595,7 @@ export function AdminDashboard({ profile }: { profile: UserProfile }) {
           const dayOfWeek = currentDate.getDay();
           const log = userLogs.find(l => l.check_in?.toDate().toISOString().split('T')[0] === dateStr);
           
-          const globalHoliday = holidays.find(h => !h.date && (h.date === dateStr || h.day === dayOfWeek));
+          const globalHoliday = holidays.find(h => !h.user_id && (h.date === dateStr || h.day === dayOfWeek));
           const userHoliday = holidays.find(h => h.user_id === user.id && (h.date === dateStr || h.day === dayOfWeek));
           const isWeeklyOff = tenant?.off_days?.includes(dayOfWeek);
           const holiday = globalHoliday || userHoliday;
