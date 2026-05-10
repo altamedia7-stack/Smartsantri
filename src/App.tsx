@@ -13,7 +13,7 @@ import { toast } from 'sonner';
 
 export default function App() {
   const { user, profile, loading } = useAuth();
-  const [adminViewMode, setAdminViewMode] = useState<'admin' | 'user'>('admin');
+  const [adminViewMode, setAdminViewMode] = useState<'admin' | 'user'>('user');
 
   if (loading) {
     return (
