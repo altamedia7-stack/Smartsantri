@@ -10,7 +10,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
 import { auth } from '../firebase';
-import { signOut } from 'firebase/auth';
+import { signOut, EmailAuthProvider, reauthenticateWithCredential, updatePassword } from 'firebase/auth';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Loader2, MapPin, Camera, CheckCircle2, XCircle, AlertTriangle, Clock, History, BookOpen, Plus, Home, User, Users, Calendar, Lock, MoreVertical, Bell, LogOut, Send, Settings, Info, ChevronRight, ChevronDown, LogIn, LogOut as LogOutIcon, Scan, RefreshCw, Filter, Check, FileText, Image, Trash2, Edit, Search, ChevronLeft, Upload, Download, Mail, Phone, CreditCard, Globe, Moon, Edit2 } from 'lucide-react';
@@ -783,19 +783,35 @@ export function UserDashboard({ profile }: { profile: UserProfile }) {
       return;
     }
 
+    const currentUser = auth.currentUser;
+    if (!currentUser || !currentUser.email) {
+      toast.error('Otentikasi bermasalah. Harap login ulang.');
+      return;
+    }
+
     setIsUpdatingProfile(true);
     try {
-      // For simplicity in this multi-tenant setup where users might use username/password 
-      // stored in Firestore (like Super Admin), we update the 'password' field in the user document.
-      // Note: In a real production app with Firebase Auth, you'd use updatePassword(auth.currentUser, newPassword)
+      // Re-authenticate user first
+      const credential = EmailAuthProvider.credential(currentUser.email, passwords.current);
+      await reauthenticateWithCredential(currentUser, credential);
+      
+      // Update password in Firebase Auth
+      await updatePassword(currentUser, passwords.new);
+
+      // Also update in firestore for reference if needed
       await updateDoc(doc(db, 'users', profile.id), {
         password: passwords.new
       });
+      
       toast.success('Kata sandi berhasil diperbarui');
       setIsChangingPassword(false);
       setPasswords({ current: '', new: '', confirm: '' });
-    } catch (error) {
-      toast.error('Gagal memperbarui kata sandi');
+    } catch (error: any) {
+      if (error.code === 'auth/invalid-credential' || error.code === 'auth/wrong-password') {
+        toast.error('Kata sandi saat ini salah');
+      } else {
+        toast.error('Gagal memperbarui kata sandi: ' + error.message);
+      }
     } finally {
       setIsUpdatingProfile(false);
     }

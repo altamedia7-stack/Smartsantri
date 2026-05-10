@@ -431,8 +431,8 @@ export function AdminDashboard({ profile }: { profile: UserProfile }) {
 
   const downloadTemplate = () => {
     const template = [
-      { 'Nama Lengkap': 'Budi Santoso', 'Email/Username': 'budi123', 'Peran (USER/ADMIN)': 'USER' },
-      { 'Nama Lengkap': 'Siti Aminah', 'Email/Username': 'siti@gmail.com', 'Peran (USER/ADMIN)': 'USER' }
+      { 'Nama Lengkap': 'Budi Santoso', 'Email/Username': 'budi123', 'Kata Sandi': 'budi2026', 'Peran (USER/ADMIN)': 'USER' },
+      { 'Nama Lengkap': 'Siti Aminah', 'Email/Username': 'siti@gmail.com', 'Kata Sandi': 'rahasia123', 'Peran (USER/ADMIN)': 'USER' }
     ];
     const ws = XLSX.utils.json_to_sheet(template);
     const wb = XLSX.utils.book_new();
@@ -468,6 +468,7 @@ export function AdminDashboard({ profile }: { profile: UserProfile }) {
           const row = data[i];
           const name = row['Nama Lengkap'];
           const emailInput = row['Email/Username'];
+          const rawPassword = row['Kata Sandi'];
           const role = (row['Peran (USER/ADMIN)'] || 'USER').toString().toUpperCase() === 'ADMIN' ? 'ADMIN' : 'USER';
           
           if (!name || !emailInput) {
@@ -477,7 +478,8 @@ export function AdminDashboard({ profile }: { profile: UserProfile }) {
 
           try {
             const userEmail = emailInput.toString().includes('@') ? emailInput.toString() : `${emailInput}@attendance.local`;
-            const password = 'password123'; // Default password for bulk upload
+            // Default password for bulk upload if not provided
+            const password = rawPassword ? rawPassword.toString() : 'password123'; 
 
             const uid = await createAuthUser(userEmail, password);
             await setDoc(doc(db, 'users', uid), {
