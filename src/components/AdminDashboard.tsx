@@ -1717,8 +1717,9 @@ export function AdminDashboard({ profile }: { profile: UserProfile }) {
       </Dialog>
 
       <Tabs defaultValue="overview" className="space-y-6">
-        <TabsList>
+        <TabsList className="flex flex-wrap h-auto gap-1">
           <TabsTrigger value="overview">Ringkasan & Absensi</TabsTrigger>
+          <TabsTrigger value="monitoring">Monitor Hari Ini</TabsTrigger>
           <TabsTrigger value="calendar">Kalender</TabsTrigger>
           <TabsTrigger value="students">Siswa</TabsTrigger>
           <TabsTrigger value="schedules">Jadwal</TabsTrigger>
@@ -1925,6 +1926,86 @@ export function AdminDashboard({ profile }: { profile: UserProfile }) {
               </CardContent>
             </Card>
           </div>
+        </TabsContent>
+
+        <TabsContent value="monitoring" className="space-y-6">
+          <Card className="border-none shadow-sm">
+            <CardHeader>
+              <div className="flex justify-between items-center">
+                <div>
+                  <CardTitle>Kehadiran Karyawan Hari Ini</CardTitle>
+                  <CardDescription>Pemantauan status check-in dan check-out untuk {new Date().toLocaleDateString('id-ID', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</CardDescription>
+                </div>
+                <div className="text-right">
+                  <div className="text-sm font-medium">Total: {users.length} Orang</div>
+                  <div className="text-xs text-gray-500">
+                    <span className="text-green-600 font-bold">{users.filter(u => logs.some(l => l.user_id === u.id && l.check_in?.toDate().toDateString() === new Date().toDateString())).length} Hadir</span>
+                    {' • '}
+                    <span className="text-red-500 font-bold">{users.filter(u => !logs.some(l => l.user_id === u.id && l.check_in?.toDate().toDateString() === new Date().toDateString())).length} Belum Hadir</span>
+                  </div>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="rounded-md border">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Nama Karyawan</TableHead>
+                      <TableHead>Status Hari Ini</TableHead>
+                      <TableHead>Waktu Check-In</TableHead>
+                      <TableHead>Waktu Check-Out</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {users.map(user => {
+                      const todayLog = logs.find(l => l.user_id === user.id && l.check_in?.toDate().toDateString() === new Date().toDateString());
+                      
+                      return (
+                        <TableRow key={user.id}>
+                          <TableCell className="font-medium">
+                            {user.name}
+                            <div className="text-xs text-gray-400">{user.email}</div>
+                          </TableCell>
+                          <TableCell>
+                            {todayLog ? (
+                              todayLog.check_out ? (
+                                <Badge className="bg-gray-100 text-gray-700 hover:bg-gray-100">Selesai</Badge>
+                              ) : (
+                                <Badge className="bg-green-100 text-green-700 hover:bg-green-100">Sedang Bekerja</Badge>
+                              )
+                            ) : (
+                              <Badge variant="destructive" className="bg-red-100 text-red-700 hover:bg-red-100">Belum Hadir</Badge>
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            {todayLog && todayLog.check_in ? (
+                              <div className="flex items-center gap-2">
+                                <span className="text-sm">{todayLog.check_in.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                                {todayLog.status !== 'valid' && (
+                                  <Badge variant="destructive" className="text-[9px] px-1 py-0">{todayLog.status}</Badge>
+                                )}
+                              </div>
+                            ) : '-'}
+                          </TableCell>
+                          <TableCell>
+                            {todayLog && todayLog.check_out ? (
+                              <div className="flex items-center gap-2">
+                                <span className="text-sm">{todayLog.check_out.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                                {todayLog.check_out_status && todayLog.check_out_status !== 'valid' && (
+                                  <Badge variant="destructive" className="text-[9px] px-1 py-0">{todayLog.check_out_status}</Badge>
+                                )}
+                              </div>
+                            ) : '-'}
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              </div>
+            </CardContent>
+          </Card>
         </TabsContent>
 
         <TabsContent value="calendar">

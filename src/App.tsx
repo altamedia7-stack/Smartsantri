@@ -4,7 +4,7 @@ import { Auth } from './components/Auth';
 import { SuperAdminDashboard } from './components/SuperAdminDashboard';
 import { AdminDashboard } from './components/AdminDashboard';
 import { UserDashboard } from './components/UserDashboard';
-import { Loader2, LogOut, User as UserIcon, Building2, ShieldCheck } from 'lucide-react';
+import { Loader2, LogOut, User as UserIcon, Building2, ShieldCheck, Camera, Settings } from 'lucide-react';
 import { auth } from './firebase';
 import { signOut } from 'firebase/auth';
 import { Button } from '@/components/ui/button';
@@ -13,6 +13,7 @@ import { toast } from 'sonner';
 
 export default function App() {
   const { user, profile, loading } = useAuth();
+  const [adminViewMode, setAdminViewMode] = useState<'admin' | 'user'>('admin');
 
   if (loading) {
     return (
@@ -40,9 +41,11 @@ export default function App() {
     }
   };
 
+  const isUserView = profile?.role === 'USER' || (profile?.role === 'ADMIN' && adminViewMode === 'user');
+
   return (
     <div className="min-h-screen bg-gray-50">
-      {profile?.role !== 'USER' && (
+      {!isUserView && (
         <nav className="sticky top-0 z-50 border-b bg-white/80 backdrop-blur-md">
           <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3 sm:px-6 lg:px-8">
             <div className="flex items-center gap-2">
@@ -59,6 +62,32 @@ export default function App() {
                 <span className="text-sm font-medium text-gray-900">{profile?.name || user.email}</span>
                 <span className="text-xs text-gray-500">{profile?.role || 'User'}</span>
               </div>
+              
+              {profile?.role === 'ADMIN' && (
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={() => setAdminViewMode('user')}
+                  className="hidden sm:flex text-green-600 border-green-600 hover:bg-green-50"
+                  title="Masuk ke Mode Karyawan untuk Check-in"
+                >
+                  <Camera className="h-4 w-4 mr-2" />
+                  Mode Absen
+                </Button>
+              )}
+              
+              {profile?.role === 'ADMIN' && (
+                <Button 
+                  variant="outline" 
+                  size="icon" 
+                  onClick={() => setAdminViewMode('user')}
+                  className="sm:hidden text-green-600 border-green-600 hover:bg-green-50"
+                  title="Mode Absen"
+                >
+                  <Camera className="h-4 w-4" />
+                </Button>
+              )}
+
               <Button variant="ghost" size="icon" onClick={handleLogout} className="text-gray-500 hover:text-red-600">
                 <LogOut className="h-5 w-5" />
               </Button>
@@ -66,11 +95,16 @@ export default function App() {
           </div>
         </nav>
       )}
-
-      <main className={`mx-auto max-w-7xl ${profile?.role === 'USER' ? '' : 'px-4 py-8 sm:px-6 lg:px-8'}`}>
+      
+      <main className={`mx-auto max-w-7xl ${isUserView ? '' : 'px-4 py-8 sm:px-6 lg:px-8'}`}>
         {profile?.role === 'SUPER_ADMIN' && <SuperAdminDashboard />}
-        {profile?.role === 'ADMIN' && <AdminDashboard profile={profile} />}
-        {profile?.role === 'USER' && <UserDashboard profile={profile} />}
+        {profile?.role === 'ADMIN' && adminViewMode === 'admin' && <AdminDashboard profile={profile} />}
+        {(profile?.role === 'USER' || (profile?.role === 'ADMIN' && adminViewMode === 'user')) && (
+          <UserDashboard 
+            profile={profile!} 
+            onSwitchToAdmin={profile?.role === 'ADMIN' ? () => setAdminViewMode('admin') : undefined} 
+          />
+        )}
         
         {!profile && !loading && (
           <div className="flex flex-col items-center justify-center py-20 text-center">

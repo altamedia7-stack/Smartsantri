@@ -114,5 +114,33 @@ service cloud.firestore {
       allow create: if isSuperAdmin() || isTenantAdmin(request.resource.data.tenant_id);
       allow update, delete: if isSuperAdmin() || isTenantAdmin(resource.data.tenant_id);
     }
+
+    // Students
+    match /students/{studentId} {
+      allow read: if isAuthenticated();
+      allow create: if isSuperAdmin() || isTenantAdmin(request.resource.data.tenant_id);
+      allow update, delete: if isSuperAdmin() || isTenantAdmin(resource.data.tenant_id);
+    }
+
+    // Schedules
+    match /schedules/{scheduleId} {
+      allow read: if isAuthenticated();
+      allow create: if isSuperAdmin() || isTenantAdmin(request.resource.data.tenant_id);
+      allow update, delete: if isSuperAdmin() || isTenantAdmin(resource.data.tenant_id);
+    }
+
+    // Grades
+    match /grades/{gradeId} {
+      allow read: if isAuthenticated();
+      allow create: if isSuperAdmin() || isTenantAdmin(request.resource.data.tenant_id);
+      allow update, delete: if isSuperAdmin() || isTenantAdmin(resource.data.tenant_id);
+    }
+
+    // Student Attendance
+    match /student_attendance/{attendanceId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated();
+      allow update, delete: if isSuperAdmin() || isTenantAdmin(resource.data.tenant_id);
+    }
   }
 }

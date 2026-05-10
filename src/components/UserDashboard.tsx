@@ -13,7 +13,7 @@ import { auth } from '../firebase';
 import { signOut, EmailAuthProvider, reauthenticateWithCredential, updatePassword } from 'firebase/auth';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Loader2, MapPin, Camera, CheckCircle2, XCircle, AlertTriangle, Clock, History, BookOpen, Plus, Home, User, Users, Calendar, Lock, MoreVertical, Bell, LogOut, Send, Settings, Info, ChevronRight, ChevronDown, LogIn, LogOut as LogOutIcon, Scan, RefreshCw, Filter, Check, FileText, Image, Trash2, Edit, Search, ChevronLeft, Upload, Download, Mail, Phone, CreditCard, Globe, Moon, Edit2 } from 'lucide-react';
+import { Loader2, MapPin, Camera, CheckCircle2, XCircle, AlertTriangle, Clock, History, BookOpen, Plus, Home, User, Users, Calendar, Lock, MoreVertical, Bell, LogOut, Send, Settings, Info, ChevronRight, ChevronDown, LogIn, LogOut as LogOutIcon, Scan, RefreshCw, Filter, Check, FileText, Image, Trash2, Edit, Search, ChevronLeft, Upload, Download, Mail, Phone, CreditCard, Globe, Moon, Edit2, Activity } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { toast } from 'sonner';
 import { validateLocation, getFaceDescriptor, loadFaceModels, compareFaces, calculateDistance } from '../lib/attendance';
@@ -54,7 +54,7 @@ const SUBJECTS = ['Matematika', 'Bahasa Indonesia', 'Bahasa Inggris', 'IPA', 'IP
 const CLASSES = ['7A', '7B', '8A', '8B', '9A', '9B', '10A', '10B', '11A', '11B', '12A', '12B'];
 const TIMES = ['Jam ke-1', 'Jam ke-2', 'Jam ke-3', 'Jam ke-4', 'Jam ke-5', 'Jam ke-6', 'Jam ke-7', 'Jam ke-8'];
 
-export function UserDashboard({ profile }: { profile: UserProfile }) {
+export function UserDashboard({ profile, onSwitchToAdmin }: { profile: UserProfile, onSwitchToAdmin?: () => void }) {
   const [tenant, setTenant] = useState<Tenant | null>(null);
   const [lastLog, setLastLog] = useState<AttendanceRecord | null>(null);
   const [history, setHistory] = useState<AttendanceRecord[]>([]);
@@ -90,7 +90,9 @@ export function UserDashboard({ profile }: { profile: UserProfile }) {
   const [studentGrades, setStudentGrades] = useState<{[key: string]: number}>({});
   const [selectedSchedule, setSelectedSchedule] = useState<Schedule | null>(null);
   
-  const [activeTab, setActiveTab] = useState<'home' | 'journal' | 'history' | 'profile'>('home');
+  const [activeTab, setActiveTab] = useState<'home' | 'journal' | 'history' | 'profile' | 'monitoring'>('home');
+  const [allUsers, setAllUsers] = useState<UserProfile[]>([]);
+  const [allLogs, setAllLogs] = useState<AttendanceRecord[]>([]);
   const [showPersonalInfo, setShowPersonalInfo] = useState(false);
   const [showAccountSettings, setShowAccountSettings] = useState(false);
   const [isChangingPassword, setIsChangingPassword] = useState(false);
@@ -227,6 +229,31 @@ export function UserDashboard({ profile }: { profile: UserProfile }) {
       handleFirestoreError(error, OperationType.LIST, 'students');
     });
 
+    let unsubAllUsers: (() => void) | undefined;
+    let unsubAllLogs: (() => void) | undefined;
+    
+    if (profile.role === 'ADMIN') {
+      const allUsersQuery = query(collection(db, 'users'), where('tenant_id', '==', profile.tenant_id));
+      unsubAllUsers = onSnapshot(allUsersQuery, (snapshot) => {
+        setAllUsers(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as UserProfile)));
+      }, (error) => {
+        handleFirestoreError(error, OperationType.LIST, 'users');
+      });
+
+      const todayStart = new Date();
+      todayStart.setHours(0, 0, 0, 0);
+      const allLogsQuery = query(
+        collection(db, 'attendance'),
+        where('tenant_id', '==', profile.tenant_id),
+        where('check_in', '>=', todayStart)
+      );
+      unsubAllLogs = onSnapshot(allLogsQuery, (snapshot) => {
+        setAllLogs(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as AttendanceRecord)));
+      }, (error) => {
+        handleFirestoreError(error, OperationType.LIST, 'attendance');
+      });
+    }
+
     // Watch Location
     const watchId = navigator.geolocation.watchPosition(
       (pos) => setLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude, accuracy: pos.coords.accuracy }),
@@ -242,6 +269,8 @@ export function UserDashboard({ profile }: { profile: UserProfile }) {
       unsubAnnouncements();
       unsubSchedules();
       unsubStudents();
+      if (unsubAllUsers) unsubAllUsers();
+      if (unsubAllLogs) unsubAllLogs();
       navigator.geolocation.clearWatch(watchId);
     };
   }, [profile.tenant_id, profile.id]);
@@ -932,45 +961,45 @@ export function UserDashboard({ profile }: { profile: UserProfile }) {
   ];
 
   return (
-    <div className="space-y-6 sm:space-y-8 pb-24 sm:pb-8">
+    <div className="space-y-4 sm:space-y-6 pb-24 sm:pb-8">
       {activeTab === 'home' && (
-        <>
+        <div className="flex flex-col h-full">
           {/* PREMIUM HEADER */}
-          <div className="bg-gradient-to-br from-green-600 via-green-500 to-emerald-400 px-6 pt-14 pb-12 shadow-2xl relative -mx-4 sm:-mx-6 lg:-mx-8 -mt-12 mb-8 rounded-b-[2.5rem]">
+          <div className="bg-gradient-to-br from-green-600 via-green-500 to-emerald-400 px-5 pt-8 pb-10 shadow-2xl relative -mx-4 sm:-mx-6 lg:-mx-8 -mt-12 mb-4 rounded-b-[2rem]">
             <div className="flex items-center justify-between">
-              <div className="flex items-center gap-4">
+              <div className="flex items-center gap-3">
                 <div className="relative">
-                  <div className="h-16 w-16 overflow-hidden rounded-full border-4 border-white/30 bg-card text-card-foreground dark:border-gray-800/10 shadow-xl backdrop-blur-md">
+                  <div className="h-12 w-12 overflow-hidden rounded-full border-[3px] border-white/30 bg-card text-card-foreground shadow-xl backdrop-blur-md">
                     {profile.face_image_url ? (
                       <img src={profile.face_image_url} alt="Profile" className="h-full w-full object-cover" />
                     ) : (
-                      <User className="h-full w-full p-3 text-white" />
+                      <User className="h-full w-full p-2 text-white" />
                     )}
                   </div>
-                  <div className="absolute bottom-0 right-0 h-4 w-4 rounded-full border-2 border-white bg-green-500 shadow-sm" />
+                  <div className="absolute bottom-0 right-0 h-3 w-3 rounded-full border-2 border-white bg-green-500 shadow-sm" />
                 </div>
                 <div className="text-white">
-                  <h1 className="text-xl font-black tracking-tight leading-tight">{profile.name}</h1>
-                  <div className="flex items-center gap-2 mt-1">
-                    <p className="text-[10px] text-white/80 uppercase font-bold tracking-[0.15em]">{tenant?.name || 'SIPREDA'}</p>
+                  <h1 className="text-lg font-black tracking-tight leading-tight">{profile.name}</h1>
+                  <div className="flex items-center gap-1 mt-0.5">
+                    <p className="text-[9px] text-white/80 uppercase font-bold tracking-[0.1em]">{tenant?.name || 'SIPREDA'}</p>
                   </div>
                 </div>
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1">
                 <div className="relative">
-                  <Button variant="ghost" size="icon" className="text-white hover:bg-white/20 rounded-2xl h-12 w-12">
-                    <Bell className="h-6 w-6" />
+                  <Button variant="ghost" size="icon" className="text-white hover:bg-white/20 rounded-xl h-10 w-10">
+                    <Bell className="h-5 w-5" />
                   </Button>
                   {unreadNotifications > 0 && (
-                    <span className="absolute top-2 right-2 h-4 w-4 bg-red-500 border-2 border-green-500 rounded-full flex items-center justify-center text-[8px] font-bold text-white">
+                    <span className="absolute top-2 right-2 h-3.5 w-3.5 bg-red-500 border-2 border-green-500 rounded-full flex items-center justify-center text-[8px] font-bold text-white">
                       {unreadNotifications}
                     </span>
                   )}
                 </div>
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" size="icon" className="text-white hover:bg-white/20 rounded-2xl h-12 w-12">
-                      <Settings className="h-6 w-6" />
+                    <Button variant="ghost" size="icon" className="text-white hover:bg-white/20 rounded-xl h-10 w-10">
+                      <Settings className="h-5 w-5" />
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end" className="w-56 rounded-[1.5rem] p-2 shadow-2xl border-gray-100">
@@ -982,6 +1011,15 @@ export function UserDashboard({ profile }: { profile: UserProfile }) {
                       <User className="mr-3 h-4 w-4" />
                       <span className="font-bold">Profil</span>
                     </DropdownMenuItem>
+                    {onSwitchToAdmin && (
+                      <>
+                        <div className="h-px bg-gray-100 my-1"></div>
+                        <DropdownMenuItem onClick={onSwitchToAdmin} className="cursor-pointer py-3 rounded-xl text-green-600 focus:text-green-600 focus:bg-green-50">
+                          <Settings className="mr-3 h-4 w-4" />
+                          <span className="font-bold">Kembali ke Admin</span>
+                        </DropdownMenuItem>
+                      </>
+                    )}
                   </DropdownMenuContent>
                 </DropdownMenu>
               </div>
@@ -992,43 +1030,43 @@ export function UserDashboard({ profile }: { profile: UserProfile }) {
           <motion.div 
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="relative -mt-20 px-4 sm:px-0"
+            className="relative -mt-10 px-4 sm:px-0 flex-grow"
           >
-            <Card className="mx-auto w-full max-w-md border-none shadow-[0_20px_50px_rgba(0,0,0,0.1)] rounded-[2.5rem] overflow-hidden bg-white/80 backdrop-blur-xl">
-              <CardContent className="flex flex-col items-center py-10">
+            <Card className="mx-auto w-full max-w-md border-none shadow-[0_20px_50px_rgba(0,0,0,0.08)] rounded-[2rem] overflow-hidden bg-white/90 backdrop-blur-xl">
+              <CardContent className="flex flex-col items-center py-6">
                 <AnimatePresence mode="wait">
                   <motion.div 
                     key={isCheckedIn ? 'checked-in' : 'not-checked-in'}
                     initial={{ scale: 0.8, opacity: 0 }}
                     animate={{ scale: 1, opacity: 1 }}
                     exit={{ scale: 0.8, opacity: 0 }}
-                    className={`relative flex h-36 w-36 items-center justify-center rounded-full border-[10px] ${isCheckedIn ? 'border-orange-50 bg-orange-100/50 text-orange-600' : 'border-green-50 bg-green-100/50 text-green-600'} transition-all duration-500 shadow-inner mb-8`}
+                    className={`relative flex h-24 w-24 items-center justify-center rounded-full border-[8px] ${isCheckedIn ? 'border-orange-50 bg-orange-100/50 text-orange-600' : 'border-green-50 bg-green-100/50 text-green-600'} transition-all duration-500 shadow-inner mb-4`}
                   >
                     {isCheckedIn ? (
-                      <Clock className="h-16 w-16 animate-pulse" />
+                      <Clock className="h-10 w-10 animate-pulse" />
                     ) : (
                       <motion.div
                         initial={{ pathLength: 0 }}
                         animate={{ pathLength: 1 }}
                       >
-                        <CheckCircle2 className="h-16 w-16" />
+                        <CheckCircle2 className="h-10 w-10" />
                       </motion.div>
                     )}
                   </motion.div>
                 </AnimatePresence>
 
-                <div className="text-center space-y-1 mb-8">
-                  <h2 className="text-5xl font-black tracking-tighter text-foreground">
+                <div className="text-center space-y-0.5 mb-4">
+                  <h2 className="text-4xl font-black tracking-tighter text-foreground">
                     {new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                   </h2>
-                  <p className="text-sm font-bold text-gray-400 uppercase tracking-widest">
+                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
                     {new Date().toLocaleDateString('id-ID', { weekday: 'long', month: 'long', day: 'numeric' })}
                   </p>
                 </div>
 
-                <div className="flex items-center gap-2 bg-muted px-4 py-2 rounded-2xl border border-gray-100">
-                  <Clock className="h-4 w-4 text-blue-500" />
-                  <span className="text-xs font-bold text-muted-foreground">
+                <div className="flex items-center gap-1.5 bg-muted px-3 py-1.5 rounded-xl border border-gray-100">
+                  <Clock className="h-3.5 w-3.5 text-blue-500" />
+                  <span className="text-[10px] font-bold text-muted-foreground uppercase">
                     {isCheckedIn 
                       ? `Check-out: ${tenant?.check_out_time || '16:00'}`
                       : `Check-in: ${tenant?.check_in_time || '07:00'}`
@@ -1040,31 +1078,18 @@ export function UserDashboard({ profile }: { profile: UserProfile }) {
           </motion.div>
 
           {/* ANALYTICS & SUMMARY */}
-          <div className="w-full max-w-md mx-auto space-y-6 px-4 sm:px-0 mt-8">
-            {/* WEEKLY CHART */}
-            <Card className="border-none shadow-xl shadow-gray-100/50 rounded-[2rem] overflow-hidden bg-white">
-              <CardHeader className="pb-2">
-                <div className="flex items-center justify-between">
-                  <CardTitle className="text-sm font-black uppercase tracking-widest text-gray-400">Kehadiran Mingguan</CardTitle>
-                  <Badge variant="secondary" className="bg-green-50 text-green-700 border-green-100">7 Hari Terakhir</Badge>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <WeeklyChart data={weeklyData} />
-              </CardContent>
-            </Card>
-
+          <div className="w-full max-w-md mx-auto space-y-4 px-4 sm:px-0 mt-4 mb-2 pb-20">
             {/* GPS & LOCATION STATUS */}
-            <Card className={`border-none shadow-xl rounded-[2rem] overflow-hidden transition-all duration-500 ${location && tenant && calculateDistance(location.lat, location.lng, tenant.lat, tenant.lng) <= tenant.radius ? 'bg-green-50/50 shadow-green-100/50' : 'bg-red-50/50 shadow-red-100/50'}`}>
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between mb-4">
-                  <div className="flex items-center gap-3">
-                    <div className={`p-3 rounded-2xl ${location ? 'bg-white shadow-sm text-green-600' : 'bg-white shadow-sm text-gray-400'}`}>
-                      <MapPin className="h-6 w-6" />
+            <Card className={`border-none shadow-lg rounded-[1.5rem] overflow-hidden transition-all duration-500 ${location && tenant && calculateDistance(location.lat, location.lng, tenant.lat, tenant.lng) <= tenant.radius ? 'bg-green-50/80 shadow-green-100/50' : 'bg-red-50/80 shadow-red-100/50'}`}>
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-2.5">
+                    <div className={`p-2 rounded-xl ${location ? 'bg-white shadow-sm text-green-600' : 'bg-white shadow-sm text-gray-400'}`}>
+                      <MapPin className="h-4 w-4" />
                     </div>
                     <div>
-                      <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">Live GPS Status</p>
-                      <p className="text-sm font-bold text-gray-900">
+                      <p className="text-[9px] font-black uppercase tracking-widest text-gray-400">Live GPS</p>
+                      <p className="text-xs font-bold text-gray-900">
                         {location ? `Akurasi: ${location.accuracy.toFixed(1)}m` : 'Mencari lokasi...'}
                       </p>
                     </div>
@@ -1072,7 +1097,7 @@ export function UserDashboard({ profile }: { profile: UserProfile }) {
                   <Button 
                     variant="ghost" 
                     size="icon" 
-                    className="h-10 w-10 rounded-xl bg-white shadow-sm text-gray-400 hover:text-green-600"
+                    className="h-8 w-8 rounded-lg bg-white shadow-sm text-gray-400 hover:text-green-600"
                     onClick={() => {
                       navigator.geolocation.getCurrentPosition(
                         (pos) => setLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude, accuracy: pos.coords.accuracy }),
@@ -1080,59 +1105,59 @@ export function UserDashboard({ profile }: { profile: UserProfile }) {
                       );
                     }}
                   >
-                    <RefreshCw className="h-4 w-4" />
+                    <RefreshCw className="h-3.5 w-3.5" />
                   </Button>
                 </div>
                 
                 {location && (
-                  <div className="relative h-32 w-full rounded-2xl overflow-hidden border border-white shadow-inner mb-4">
+                  <div className="relative h-24 w-full rounded-xl overflow-hidden border border-white shadow-inner mb-3">
                     <div 
                       className="absolute inset-0"
                       style={{
-                        backgroundImage: `url(https://static-maps.yandex.ru/1.x/?ll=${location.lng},${location.lat}&z=16&l=map&size=450,250&pt=${location.lng},${location.lat},pm2gnm)`,
+                        backgroundImage: `url(https://static-maps.yandex.ru/1.x/?ll=${location.lng},${location.lat}&z=16&l=map&size=300,150&pt=${location.lng},${location.lat},pm2gnm)`,
                         backgroundSize: 'cover',
                         backgroundPosition: 'center'
                       }}
                     />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent" />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/10 to-transparent" />
                   </div>
                 )}
 
                 {location && tenant && (
-                  <div className={`w-full py-3 text-center rounded-2xl text-xs font-black uppercase tracking-widest ${calculateDistance(location.lat, location.lng, tenant.lat, tenant.lng) <= tenant.radius ? 'bg-green-500 text-white shadow-lg shadow-green-200' : 'bg-red-500 text-white shadow-lg shadow-red-200'}`}>
-                    {calculateDistance(location.lat, location.lng, tenant.lat, tenant.lng) <= tenant.radius ? 'Dalam Area Sekolah' : 'Di Luar Area Sekolah'}
+                  <div className={`w-full py-2 text-center rounded-xl text-[10px] font-black uppercase tracking-widest ${calculateDistance(location.lat, location.lng, tenant.lat, tenant.lng) <= tenant.radius ? 'bg-green-500 text-white shadow-md shadow-green-200' : 'bg-red-500 text-white shadow-md shadow-red-200'}`}>
+                    {calculateDistance(location.lat, location.lng, tenant.lat, tenant.lng) <= tenant.radius ? 'Dalam Area' : 'Di Luar Area'}
                   </div>
                 )}
               </CardContent>
             </Card>
 
             {/* DAILY SUMMARY */}
-            <div className="grid grid-cols-2 gap-4">
-              <Card className="border-none shadow-xl shadow-gray-100/50 rounded-[2rem] bg-white p-5">
-                <div className="flex items-center gap-3 mb-3">
-                  <div className="h-8 w-8 rounded-lg bg-green-50 text-green-600 flex items-center justify-center">
-                    <LogIn className="h-4 w-4" />
+            <div className="grid grid-cols-2 gap-3">
+              <Card className="border-none shadow-lg shadow-gray-100/50 rounded-[1.5rem] bg-white p-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <div className="h-6 w-6 rounded-md bg-green-50 text-green-600 flex items-center justify-center">
+                    <LogIn className="h-3 w-3" />
                   </div>
-                  <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">Jam Masuk</p>
+                  <p className="text-[9px] font-black uppercase tracking-widest text-gray-400">Jam Masuk</p>
                 </div>
-                <p className="text-xl font-black text-gray-900">
+                <p className="text-lg font-black text-gray-900">
                   {lastLog?.check_in ? lastLog.check_in.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '--:--'}
                 </p>
               </Card>
-              <Card className="border-none shadow-xl shadow-gray-100/50 rounded-[2rem] bg-white p-5">
-                <div className="flex items-center gap-3 mb-3">
-                  <div className="h-8 w-8 rounded-lg bg-orange-50 text-orange-600 flex items-center justify-center">
-                    <LogOutIcon className="h-4 w-4" />
+              <Card className="border-none shadow-lg shadow-gray-100/50 rounded-[1.5rem] bg-white p-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <div className="h-6 w-6 rounded-md bg-orange-50 text-orange-600 flex items-center justify-center">
+                    <LogOutIcon className="h-3 w-3" />
                   </div>
-                  <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">Jam Keluar</p>
+                  <p className="text-[9px] font-black uppercase tracking-widest text-gray-400">Jam Keluar</p>
                 </div>
-                <p className="text-xl font-black text-gray-900">
+                <p className="text-lg font-black text-gray-900">
                   {lastLog?.check_out ? lastLog.check_out.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '--:--'}
                 </p>
               </Card>
             </div>
           </div>
-        </>
+        </div>
       )}
 
       {activeTab === 'journal' && tenant?.is_journal_enabled !== false && (
@@ -2093,6 +2118,80 @@ export function UserDashboard({ profile }: { profile: UserProfile }) {
         </div>
       )}
 
+      {activeTab === 'monitoring' && profile.role === 'ADMIN' && (
+        <div className="w-full max-w-md mx-auto space-y-4 px-4 sm:px-0 pb-24 pt-4">
+          <div className="flex items-center justify-between mb-2">
+            <div>
+              <h3 className="text-2xl font-black text-gray-900 tracking-tight">Monitor Hari Ini</h3>
+              <p className="text-xs font-medium text-gray-500">
+                {new Date().toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long' })}
+              </p>
+            </div>
+            <div className="text-right">
+              <div className="text-[10px] font-bold text-gray-400 uppercase tracking-widest bg-gray-100 px-2 py-1 rounded-md">
+                Total: {allUsers.length}
+              </div>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3 mb-6">
+            <div className="bg-green-50 rounded-2xl p-4 border border-green-100/50">
+              <p className="text-3xl font-black text-green-600 mb-1">
+                {allUsers.filter(u => allLogs.some(l => l.user_id === u.id)).length}
+              </p>
+              <p className="text-[10px] font-bold text-green-800/60 uppercase tracking-widest">Hadir</p>
+            </div>
+            <div className="bg-red-50 rounded-2xl p-4 border border-red-100/50">
+              <p className="text-3xl font-black text-red-500 mb-1">
+                {allUsers.filter(u => !allLogs.some(l => l.user_id === u.id)).length}
+              </p>
+              <p className="text-[10px] font-bold text-red-800/60 uppercase tracking-widest">Belum Hadir</p>
+            </div>
+          </div>
+
+          <div className="space-y-3">
+            {allUsers.map(user => {
+              const todayLog = allLogs.find(l => l.user_id === user.id);
+              return (
+                <div key={user.id} className="bg-white p-4 rounded-[20px] shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-gray-100 flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="h-10 w-10 shrink-0 rounded-full bg-gray-100 flex items-center justify-center overflow-hidden">
+                      {user.face_image_url ? (
+                        <img src={user.face_image_url} alt="" className="w-full h-full object-cover" />
+                      ) : (
+                        <User className="h-5 w-5 text-gray-400" />
+                      )}
+                    </div>
+                    <div>
+                      <p className="text-sm font-bold text-gray-900">{user.name}</p>
+                      {todayLog ? (
+                        <p className="text-xs text-green-600 font-medium flex items-center gap-1">
+                          <CheckCircle2 className="h-3 w-3" />
+                          In {todayLog.check_in?.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                          {todayLog.check_out && ` • Out ${todayLog.check_out.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`}
+                        </p>
+                      ) : (
+                        <p className="text-xs text-red-500 font-medium flex items-center gap-1">
+                          <XCircle className="h-3 w-3" />
+                          Belum Hadir
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+            
+            {allUsers.length === 0 && (
+              <div className="text-center py-10 bg-white rounded-[24px] border border-gray-100 border-dashed">
+                <Users className="h-10 w-10 text-gray-300 mx-auto mb-3" />
+                <p className="text-sm font-bold text-gray-500">Belum ada data karyawan</p>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       {activeTab === 'profile' && (
         <div className="w-full max-w-md mx-auto space-y-6 px-4 sm:px-0 pb-24 pt-4">
           {/* PROFILE HEADER CARD */}
@@ -2551,8 +2650,19 @@ export function UserDashboard({ profile }: { profile: UserProfile }) {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.5 }}
-            className="pt-4"
+            className="pt-4 space-y-3"
           >
+            {onSwitchToAdmin && (
+              <Button 
+                variant="outline" 
+                className="w-full h-14 rounded-[20px] border-green-100 bg-green-50 text-green-600 hover:bg-green-100 hover:text-green-700 font-bold text-base transition-colors"
+                onClick={onSwitchToAdmin}
+              >
+                <Settings className="h-5 w-5 mr-2" />
+                Kembali ke Admin
+              </Button>
+            )}
+
             <Button 
               variant="outline" 
               className="w-full h-14 rounded-[20px] border-red-100 bg-red-50 text-red-600 hover:bg-red-100 hover:text-red-700 font-bold text-base transition-colors"
@@ -2566,63 +2676,73 @@ export function UserDashboard({ profile }: { profile: UserProfile }) {
       )}
 
       {/* Bottom Navigation Bar for Mobile */}
-      <div className="fixed bottom-0 left-0 right-0 z-50 border-t border-gray-100 bg-white/80 backdrop-blur-2xl pb-safe sm:hidden rounded-t-[2rem] shadow-[0_-10px_40px_rgba(0,0,0,0.05)]">
-        <div className="flex justify-around items-center px-2 py-2 relative h-20">
+      <div className="fixed bottom-0 left-0 right-0 z-50 border-t border-gray-100 bg-white/80 backdrop-blur-2xl pb-safe sm:hidden rounded-t-[1.5rem] shadow-[0_-10px_40px_rgba(0,0,0,0.05)]">
+        <div className="flex justify-around items-center px-1 py-1 relative h-16">
           <button 
             onClick={() => setActiveTab('home')}
-            className={`flex flex-col items-center justify-center w-16 h-16 rounded-2xl transition-all ${activeTab === 'home' ? 'text-green-600 bg-green-50' : 'text-gray-400'}`}
+            className={`flex flex-col items-center justify-center w-14 h-14 rounded-2xl transition-all ${activeTab === 'home' ? 'text-green-600 bg-green-50' : 'text-gray-400'}`}
           >
-            <Home className="h-6 w-6" />
+            <Home className="h-5 w-5" />
             <span className="text-[8px] font-black mt-1 uppercase tracking-widest">Home</span>
           </button>
           
-          <button 
-            onClick={() => {
-              if (tenant?.is_journal_enabled === false) {
-                toast.error('Fitur Jurnal Guru sedang dinonaktifkan oleh Admin');
-              } else {
-                setActiveTab('journal');
-              }
-            }}
-            className={`flex flex-col items-center justify-center w-16 h-16 rounded-2xl transition-all ${activeTab === 'journal' ? 'text-green-600 bg-green-50' : 'text-gray-400'} ${tenant?.is_journal_enabled === false ? 'opacity-50' : ''}`}
-          >
-            <BookOpen className="h-6 w-6" />
-            <span className="text-[8px] font-black mt-1 uppercase tracking-widest">Jurnal</span>
-          </button>
+          {profile.role === 'ADMIN' ? (
+            <button 
+              onClick={() => setActiveTab('monitoring')}
+              className={`flex flex-col items-center justify-center w-14 h-14 rounded-2xl transition-all ${activeTab === 'monitoring' ? 'text-green-600 bg-green-50' : 'text-gray-400'}`}
+            >
+              <Activity className="h-5 w-5" />
+              <span className="text-[8px] font-black mt-1 uppercase tracking-widest">Monitor</span>
+            </button>
+          ) : (
+            <button 
+              onClick={() => {
+                if (tenant?.is_journal_enabled === false) {
+                  toast.error('Fitur Jurnal Guru sedang dinonaktifkan oleh Admin');
+                } else {
+                  setActiveTab('journal');
+                }
+              }}
+              className={`flex flex-col items-center justify-center w-14 h-14 rounded-2xl transition-all ${activeTab === 'journal' ? 'text-green-600 bg-green-50' : 'text-gray-400'} ${tenant?.is_journal_enabled === false ? 'opacity-50' : ''}`}
+            >
+              <BookOpen className="h-5 w-5" />
+              <span className="text-[8px] font-black mt-1 uppercase tracking-widest">Jurnal</span>
+            </button>
+          )}
 
           {/* Central Floating Button */}
-          <div className="relative -top-8">
+          <div className="relative -top-6">
             <motion.button
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.9 }}
               onClick={isCheckedIn ? handleCheckOut : handleCheckIn}
               disabled={isProcessing || !location}
-              className={`flex h-20 w-20 items-center justify-center rounded-full shadow-[0_15px_30px_rgba(34,197,94,0.3)] transition-all border-8 border-white ${
+              className={`flex h-16 w-16 items-center justify-center rounded-full shadow-[0_15px_30px_rgba(34,197,94,0.3)] transition-all border-[6px] border-white ${
                 isCheckedIn ? 'bg-orange-500 shadow-orange-200' : 'bg-green-500 shadow-green-200'
               } ${isProcessing || !location ? 'opacity-50 grayscale' : ''}`}
             >
               {isProcessing ? (
-                <Loader2 className="h-10 w-10 animate-spin text-white" />
+                <Loader2 className="h-7 w-7 animate-spin text-white" />
               ) : isCheckedIn ? (
-                <LogOut className="h-10 w-10 text-white" />
+                <LogOut className="h-7 w-7 text-white" />
               ) : (
-                <Camera className="h-10 w-10 text-white" />
+                <Camera className="h-7 w-7 text-white" />
               )}
             </motion.button>
           </div>
 
           <button 
             onClick={() => setActiveTab('history')}
-            className={`flex flex-col items-center justify-center w-16 h-16 rounded-2xl transition-all ${activeTab === 'history' ? 'text-green-600 bg-green-50' : 'text-gray-400'}`}
+            className={`flex flex-col items-center justify-center w-14 h-14 rounded-2xl transition-all ${activeTab === 'history' ? 'text-green-600 bg-green-50' : 'text-gray-400'}`}
           >
-            <History className="h-6 w-6" />
+            <History className="h-5 w-5" />
             <span className="text-[8px] font-black mt-1 uppercase tracking-widest">Riwayat</span>
           </button>
           <button 
             onClick={() => setActiveTab('profile')}
-            className={`flex flex-col items-center justify-center w-16 h-16 rounded-2xl transition-all ${activeTab === 'profile' ? 'text-green-600 bg-green-50' : 'text-gray-400'}`}
+            className={`flex flex-col items-center justify-center w-14 h-14 rounded-2xl transition-all ${activeTab === 'profile' ? 'text-green-600 bg-green-50' : 'text-gray-400'}`}
           >
-            <User className="h-6 w-6" />
+            <User className="h-5 w-5" />
             <span className="text-[8px] font-black mt-1 uppercase tracking-widest">Profil</span>
           </button>
         </div>
