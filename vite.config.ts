@@ -20,34 +20,22 @@ export default defineConfig(({mode}) => {
           theme_color: '#16a34a',
           icons: [
             {
-              src: '/icon.svg',
+              src: '/sipreda-icon.jpeg',
               sizes: '192x192',
-              type: 'image/svg+xml',
+              type: 'image/jpeg',
               purpose: 'any'
             },
             {
-              src: '/icon.svg',
+              src: '/sipreda-icon.jpeg',
               sizes: '512x512',
-              type: 'image/svg+xml',
+              type: 'image/jpeg',
               purpose: 'any'
             },
             {
-              src: '/icon.svg',
+              src: '/sipreda-icon.jpeg',
               sizes: '512x512',
-              type: 'image/svg+xml',
+              type: 'image/jpeg',
               purpose: 'maskable'
-            },
-            {
-              src: 'https://picsum.photos/seed/sipreda/192/192',
-              sizes: '192x192',
-              type: 'image/png',
-              purpose: 'any'
-            },
-            {
-              src: 'https://picsum.photos/seed/sipreda/512/512',
-              sizes: '512x512',
-              type: 'image/png',
-              purpose: 'any'
             }
           ]
         },
