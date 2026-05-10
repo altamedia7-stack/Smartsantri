@@ -997,10 +997,8 @@ export function UserDashboard({ profile, onSwitchToAdmin }: { profile: UserProfi
                   )}
                 </div>
                 <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" size="icon" className="text-white hover:bg-white/20 rounded-xl h-10 w-10">
-                      <Settings className="h-5 w-5" />
-                    </Button>
+                  <DropdownMenuTrigger render={<Button variant="ghost" size="icon" className="text-white hover:bg-white/20 rounded-xl h-10 w-10" />}>
+                    <Settings className="h-5 w-5" />
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end" className="w-56 rounded-[1.5rem] p-2 shadow-2xl border-gray-100">
                     <DropdownMenuItem onClick={() => signOut(auth)} className="cursor-pointer py-3 rounded-xl text-red-600 focus:text-red-600 focus:bg-red-50">
@@ -1080,9 +1078,9 @@ export function UserDashboard({ profile, onSwitchToAdmin }: { profile: UserProfi
           {/* ANALYTICS & SUMMARY */}
           <div className="w-full max-w-md mx-auto space-y-4 px-4 sm:px-0 mt-4 mb-2 pb-20">
             {/* GPS & LOCATION STATUS */}
-            <Card className={`border-none shadow-lg rounded-[1.5rem] overflow-hidden transition-all duration-500 ${location && tenant && calculateDistance(location.lat, location.lng, tenant.lat, tenant.lng) <= tenant.radius ? 'bg-green-50/80 shadow-green-100/50' : 'bg-red-50/80 shadow-red-100/50'}`}>
-              <CardContent className="p-4">
-                <div className="flex items-center justify-between mb-3">
+            <Card className={`pt-3 pb-1 border-none shadow-lg rounded-[1.5rem] overflow-hidden transition-all duration-500 ${location && tenant && calculateDistance(location.lat, location.lng, tenant.lat, tenant.lng) <= tenant.radius ? 'bg-green-50/80 shadow-green-100/50' : 'bg-red-50/80 shadow-red-100/50'}`}>
+              <CardContent className="px-3 pb-2 pt-0">
+                <div className="flex items-center justify-between mb-2">
                   <div className="flex items-center gap-2.5">
                     <div className={`p-2 rounded-xl ${location ? 'bg-white shadow-sm text-green-600' : 'bg-white shadow-sm text-gray-400'}`}>
                       <MapPin className="h-4 w-4" />
@@ -2521,8 +2519,7 @@ export function UserDashboard({ profile, onSwitchToAdmin }: { profile: UserProfi
               </Dialog>
 
               <Dialog open={isChangingPassword} onOpenChange={setIsChangingPassword}>
-                <DialogTrigger asChild>
-                  <button className="w-full flex items-center justify-between p-3 hover:bg-gray-50 rounded-xl transition-colors">
+                <DialogTrigger render={<button className="w-full flex items-center justify-between p-3 hover:bg-gray-50 rounded-xl transition-colors" />}>
                     <div className="flex items-center gap-4">
                       <div className="h-10 w-10 rounded-full bg-gray-50 flex items-center justify-center text-gray-600">
                         <Lock className="h-5 w-5" />
@@ -2530,7 +2527,6 @@ export function UserDashboard({ profile, onSwitchToAdmin }: { profile: UserProfi
                       <span className="text-sm font-semibold text-gray-900">Ubah Password</span>
                     </div>
                     <ChevronRight className="h-5 w-5 text-gray-400" />
-                  </button>
                 </DialogTrigger>
                 <DialogContent className="sm:max-w-md rounded-[2rem] p-8">
                   <DialogHeader>
