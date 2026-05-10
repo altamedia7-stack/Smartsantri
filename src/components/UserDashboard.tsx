@@ -965,7 +965,7 @@ export function UserDashboard({ profile, onSwitchToAdmin }: { profile: UserProfi
       {activeTab === 'home' && (
         <div className="flex flex-col h-full">
           {/* PREMIUM HEADER */}
-          <div className="bg-gradient-to-br from-green-600 via-green-500 to-emerald-400 px-5 pt-8 pb-10 shadow-2xl relative -mx-4 sm:-mx-6 lg:-mx-8 -mt-12 mb-4 rounded-b-[2rem]">
+          <div className="bg-gradient-to-br from-green-600 via-green-500 to-emerald-400 px-5 pt-12 pb-10 shadow-2xl relative -mx-4 sm:-mx-6 lg:-mx-8 mb-4 rounded-b-[2rem]">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <div className="relative">
