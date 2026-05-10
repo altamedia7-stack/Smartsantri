@@ -1108,11 +1108,11 @@ export function UserDashboard({ profile, onSwitchToAdmin }: { profile: UserProfi
                 </div>
                 
                 {location && (
-                  <div className="relative h-24 w-full rounded-xl overflow-hidden border border-white shadow-inner mb-3">
+                  <div className="relative h-32 w-full rounded-xl overflow-hidden border border-white shadow-inner mb-3">
                     <div 
                       className="absolute inset-0"
                       style={{
-                        backgroundImage: `url(https://static-maps.yandex.ru/1.x/?ll=${location.lng},${location.lat}&z=16&l=map&size=300,150&pt=${location.lng},${location.lat},pm2gnm)`,
+                        backgroundImage: `url(https://static-maps.yandex.ru/1.x/?ll=${location.lng},${location.lat}&z=16&l=map&size=450,250&pt=${location.lng},${location.lat},pm2gnm)`,
                         backgroundSize: 'cover',
                         backgroundPosition: 'center'
                       }}
