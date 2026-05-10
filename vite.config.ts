@@ -14,8 +14,8 @@ export default defineConfig(({mode}) => {
         registerType: 'autoUpdate',
         includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'masked-icon.svg'],
         manifest: {
-          name: 'Smartsantri',
-          short_name: 'Smartsantri',
+          name: 'SIPREDA',
+          short_name: 'SIPREDA',
           description: 'Aplikasi Absensi dengan Pengenalan Wajah dan GPS',
           theme_color: '#16a34a',
           icons: [
@@ -38,13 +38,13 @@ export default defineConfig(({mode}) => {
               purpose: 'maskable'
             },
             {
-              src: 'https://picsum.photos/seed/smartsantri/192/192',
+              src: 'https://picsum.photos/seed/sipreda/192/192',
               sizes: '192x192',
               type: 'image/png',
               purpose: 'any'
             },
             {
-              src: 'https://picsum.photos/seed/smartsantri/512/512',
+              src: 'https://picsum.photos/seed/sipreda/512/512',
               sizes: '512x512',
               type: 'image/png',
               purpose: 'any'

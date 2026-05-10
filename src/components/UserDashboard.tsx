@@ -936,7 +936,7 @@ export function UserDashboard({ profile }: { profile: UserProfile }) {
                 <div className="text-white">
                   <h1 className="text-xl font-black tracking-tight leading-tight">{profile.name}</h1>
                   <div className="flex items-center gap-2 mt-1">
-                    <p className="text-[10px] text-white/80 uppercase font-bold tracking-[0.15em]">{tenant?.name || 'SMARTSANTRI'}</p>
+                    <p className="text-[10px] text-white/80 uppercase font-bold tracking-[0.15em]">{tenant?.name || 'SIPREDA'}</p>
                   </div>
                 </div>
               </div>

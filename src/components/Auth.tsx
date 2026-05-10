@@ -61,9 +61,9 @@ export function Auth() {
       <div className="w-full max-w-md space-y-8 relative z-10">
         <Card className="border border-gray-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] bg-white rounded-2xl">
           <CardHeader className="space-y-2 pt-10 pb-6">
-            <CardTitle className="text-[28px] font-bold text-center text-[#1e293b]">Smartsantri</CardTitle>
+            <CardTitle className="text-[28px] font-bold text-center text-[#1e293b]">SIPREDA</CardTitle>
             <CardDescription className="text-center text-gray-500 text-base">
-              Sistem Manajemen Presensi Terpadu
+              Sistem Presensi Darussalam
             </CardDescription>
           </CardHeader>
           <CardContent className="p-8 pt-4">
@@ -182,7 +182,7 @@ export function Auth() {
         </Card>
 
         <div className="text-center text-sm text-gray-400 font-medium">
-          &copy; {new Date().getFullYear()} Smartsantri. Seluruh hak cipta dilindungi.
+          &copy; {new Date().getFullYear()} SIPREDA. Seluruh hak cipta dilindungi.
         </div>
       </div>
     </div>
