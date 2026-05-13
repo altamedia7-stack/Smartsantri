@@ -2676,19 +2676,19 @@ export function UserDashboard({ profile, onSwitchToAdmin }: { profile: UserProfi
         <div className="flex justify-around items-center px-2 py-1 relative h-16">
           <button 
             onClick={() => setActiveTab('home')}
-            className={`flex flex-col items-center justify-center w-14 h-14 rounded-2xl transition-all ${activeTab === 'home' ? 'text-green-600 bg-green-50' : 'text-gray-400'}`}
+            className={`flex flex-col items-center justify-center min-w-[3.5rem] h-14 rounded-2xl transition-all ${activeTab === 'home' ? 'text-green-600 bg-green-50' : 'text-gray-400'}`}
           >
             <Home className="h-5 w-5" />
-            <span className="text-[8px] font-black mt-1 uppercase tracking-widest">Home</span>
+            <span className="text-[8px] font-black mt-1 uppercase tracking-widest whitespace-nowrap">Home</span>
           </button>
           
           {profile.role === 'ADMIN' ? (
             <button 
               onClick={() => setActiveTab('monitoring')}
-              className={`flex flex-col items-center justify-center w-14 h-14 rounded-2xl transition-all ${activeTab === 'monitoring' ? 'text-green-600 bg-green-50' : 'text-gray-400'}`}
+              className={`flex flex-col items-center justify-center min-w-[3.5rem] h-14 rounded-2xl transition-all ${activeTab === 'monitoring' ? 'text-green-600 bg-green-50' : 'text-gray-400'}`}
             >
               <Activity className="h-5 w-5" />
-              <span className="text-[8px] font-black mt-1 uppercase tracking-widest">Monitor</span>
+              <span className="text-[8px] font-black mt-1 uppercase tracking-widest whitespace-nowrap">Monitor</span>
             </button>
           ) : (
             <button 
@@ -2699,10 +2699,10 @@ export function UserDashboard({ profile, onSwitchToAdmin }: { profile: UserProfi
                   setActiveTab('journal');
                 }
               }}
-              className={`flex flex-col items-center justify-center w-14 h-14 rounded-2xl transition-all ${activeTab === 'journal' ? 'text-green-600 bg-green-50' : 'text-gray-400'} ${tenant?.is_journal_enabled === false ? 'opacity-50' : ''}`}
+              className={`flex flex-col items-center justify-center min-w-[3.5rem] h-14 rounded-2xl transition-all ${activeTab === 'journal' ? 'text-green-600 bg-green-50' : 'text-gray-400'} ${tenant?.is_journal_enabled === false ? 'opacity-50' : ''}`}
             >
               <BookOpen className="h-5 w-5" />
-              <span className="text-[8px] font-black mt-1 uppercase tracking-widest">Jurnal</span>
+              <span className="text-[8px] font-black mt-1 uppercase tracking-widest whitespace-nowrap">Jurnal</span>
             </button>
           )}
 
@@ -2729,17 +2729,17 @@ export function UserDashboard({ profile, onSwitchToAdmin }: { profile: UserProfi
 
           <button 
             onClick={() => setActiveTab('history')}
-            className={`flex flex-col items-center justify-center w-14 h-14 rounded-2xl transition-all ${activeTab === 'history' ? 'text-green-600 bg-green-50' : 'text-gray-400'}`}
+            className={`flex flex-col items-center justify-center min-w-[3.5rem] h-14 rounded-2xl transition-all ${activeTab === 'history' ? 'text-green-600 bg-green-50' : 'text-gray-400'}`}
           >
             <History className="h-5 w-5" />
-            <span className="text-[8px] font-black mt-1 uppercase tracking-widest">Riwayat</span>
+            <span className="text-[8px] font-black mt-1 uppercase tracking-widest whitespace-nowrap">Riwayat</span>
           </button>
           <button 
             onClick={() => setActiveTab('profile')}
-            className={`flex flex-col items-center justify-center w-14 h-14 rounded-2xl transition-all ${activeTab === 'profile' ? 'text-green-600 bg-green-50' : 'text-gray-400'}`}
+            className={`flex flex-col items-center justify-center min-w-[3.5rem] h-14 rounded-2xl transition-all ${activeTab === 'profile' ? 'text-green-600 bg-green-50' : 'text-gray-400'}`}
           >
             <User className="h-5 w-5" />
-            <span className="text-[8px] font-black mt-1 uppercase tracking-widest">Profil</span>
+            <span className="text-[8px] font-black mt-1 uppercase tracking-widest whitespace-nowrap">Profil</span>
           </button>
         </div>
       </div>
