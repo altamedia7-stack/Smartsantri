@@ -614,6 +614,16 @@ export function AdminDashboard({ profile }: { profile: UserProfile }) {
     };
 
     const holidayStyle = {
+      fill: { fgColor: { rgb: "F2F2F2" } },
+      font: { color: { rgb: "000000" }, bold: true },
+      alignment: { horizontal: "center", vertical: "center" },
+      border: {
+        top: { style: "thin" }, bottom: { style: "thin" },
+        left: { style: "thin" }, right: { style: "thin" }
+      }
+    };
+
+    const alphaStyle = {
       fill: { fgColor: { rgb: "FFC7CE" } },
       font: { color: { rgb: "9C0006" }, bold: true },
       alignment: { horizontal: "center", vertical: "center" },
@@ -644,6 +654,7 @@ export function AdminDashboard({ profile }: { profile: UserProfile }) {
       const targetUsers = exportUserId === 'all' ? users : users.filter(u => u.id === exportUserId);
       const allData: any[] = [];
       const holidayRows: number[] = [];
+      const alphaRows: number[] = [];
       let currentRow = 7;
 
       targetUsers.forEach(user => {
@@ -661,13 +672,14 @@ export function AdminDashboard({ profile }: { profile: UserProfile }) {
           const holiday = globalHoliday || userHoliday;
 
           if (holiday || isWeeklyOff) holidayRows.push(currentRow);
+          else if (!log || log.status === 'alpha' || log.status === 'rejected') alphaRows.push(currentRow);
 
           allData.push({
             'Nama Karyawan': user.name,
             'Tanggal': currentDate.toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' }),
             'Clock In': log?.check_in?.toDate ? log.check_in.toDate().toLocaleTimeString('id-ID') : '-',
             'Clock Out': log?.check_out?.toDate ? log.check_out.toDate().toLocaleTimeString('id-ID') : '-',
-            'Status': log ? (log.status === 'valid' ? 'Valid' : log.status === 'rejected' ? 'Ditolak' : 'Mencurigakan') : (holiday || isWeeklyOff ? 'LIBUR' : 'ABSEN'),
+            'Status': log ? (log.status === 'valid' ? 'Valid' : log.status === 'rejected' ? 'Ditolak' : log.status === 'alpha' ? 'Alpa' : 'Mencurigakan') : (holiday || isWeeklyOff ? 'LIBUR' : 'ALPA'),
             'Keterangan': log?.rejection_reason || holiday?.name || (isWeeklyOff ? 'Libur Mingguan' : '-')
           });
           
@@ -692,6 +704,7 @@ export function AdminDashboard({ profile }: { profile: UserProfile }) {
           if (R < 6) continue;
           if (R === 6) cell.s = headerStyle;
           else if (holidayRows.includes(R)) cell.s = holidayStyle;
+          else if (alphaRows.includes(R)) cell.s = alphaStyle;
           else cell.s = normalStyle;
         }
       }
@@ -730,6 +743,7 @@ export function AdminDashboard({ profile }: { profile: UserProfile }) {
         const userLogs = filteredLogs.filter(log => log.user_id === user.id);
         const userData: any[] = [];
         const holidayRows: number[] = [];
+        const alphaRows: number[] = [];
         let currentDate = new Date(startDate);
         let dataRowIndex = 7;
         let noCounter = 1;
@@ -745,13 +759,14 @@ export function AdminDashboard({ profile }: { profile: UserProfile }) {
           const holiday = globalHoliday || userHoliday;
 
           if (holiday || isWeeklyOff) holidayRows.push(dataRowIndex);
+          else if (!log || log.status === 'alpha' || log.status === 'rejected') alphaRows.push(dataRowIndex);
 
           userData.push({
             'No': noCounter++,
             'Tanggal': currentDate.toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' }),
             'Clock In': log?.check_in?.toDate ? log.check_in.toDate().toLocaleTimeString('id-ID') : '-',
             'Clock Out': log?.check_out?.toDate ? log.check_out.toDate().toLocaleTimeString('id-ID') : '-',
-            'Status': log ? (log.status === 'valid' ? 'Valid' : log.status === 'rejected' ? 'Ditolak' : 'Mencurigakan') : (holiday || isWeeklyOff ? 'LIBUR' : 'ABSEN'),
+            'Status': log ? (log.status === 'valid' ? 'Valid' : log.status === 'rejected' ? 'Ditolak' : log.status === 'alpha' ? 'Alpa' : 'Mencurigakan') : (holiday || isWeeklyOff ? 'LIBUR' : 'ALPA'),
             'Keterangan': log?.rejection_reason || holiday?.name || (isWeeklyOff ? 'Libur Mingguan' : '-')
           });
 
@@ -770,6 +785,7 @@ export function AdminDashboard({ profile }: { profile: UserProfile }) {
             if (R < 6) continue;
             if (R === 6) cell.s = headerStyle;
             else if (holidayRows.includes(R)) cell.s = holidayStyle;
+            else if (alphaRows.includes(R)) cell.s = alphaStyle;
             else cell.s = normalStyle;
           }
         }
@@ -795,8 +811,8 @@ export function AdminDashboard({ profile }: { profile: UserProfile }) {
             'Nama': user.name,
             'Clock In': log?.check_in?.toDate ? log.check_in.toDate().toLocaleTimeString('id-ID') : '-',
             'Clock Out': log?.check_out?.toDate ? log.check_out.toDate().toLocaleTimeString('id-ID') : '-',
-            'Status': log ? (log.status === 'valid' ? 'Valid' : log.status === 'rejected' ? 'Ditolak' : 'Mencurigakan') : (holiday || isWeeklyOff ? 'LIBUR' : 'ABSEN'),
-            'Keterangan': holiday?.name || (isWeeklyOff ? 'Libur Mingguan' : '-')
+            'Status': log ? (log.status === 'valid' ? 'Valid' : log.status === 'rejected' ? 'Ditolak' : log.status === 'alpha' ? 'Alpa' : 'Mencurigakan') : (holiday || isWeeklyOff ? 'LIBUR' : 'ALPA'),
+            'Keterangan': log?.rejection_reason || holiday?.name || (isWeeklyOff ? 'Libur Mingguan' : '-')
           };
         });
 
@@ -815,17 +831,20 @@ export function AdminDashboard({ profile }: { profile: UserProfile }) {
             
             if (R < 6) continue;
             if (R === 6) {
-              cell.s = headerStyle;
+               cell.s = headerStyle;
             } else {
               // For date-wise, we check if the specific user has a holiday
               const user = users[R-7];
               if (!user) continue;
+              const log = dateLogs.find(l => l.user_id === user.id);
               const globalHoliday = holidays.find(h => !h.user_id && (h.date === dateStr || h.day === dayOfWeek));
               const userHoliday = holidays.find(h => h.user_id === user.id && (h.date === dateStr || h.day === dayOfWeek));
               const isWeeklyOff = tenant?.off_days?.includes(dayOfWeek);
               
               if (globalHoliday || userHoliday || isWeeklyOff) {
                 cell.s = holidayStyle;
+              } else if (!log || log.status === 'alpha' || log.status === 'rejected') {
+                cell.s = alphaStyle;
               } else {
                 cell.s = normalStyle;
               }
@@ -1017,18 +1036,35 @@ export function AdminDashboard({ profile }: { profile: UserProfile }) {
         const startY = drawHeader(`Laporan Kehadiran - ${tenant?.name || 'Organisasi'}`, 
           `Filter Karyawan: ${exportUserId === 'all' ? 'Semua' : users.find(u => u.id === exportUserId)?.name}`);
 
-        const tableColumn = ["Nama", "Tanggal", "Check-in", "Check-out", "Status"];
+        const targetUsers = exportUserId === 'all' ? users : users.filter(u => u.id === exportUserId);
+        const tableColumn = ["Nama", "Tanggal", "Check-in", "Check-out", "Status", "Keterangan"];
         const tableRows: any[] = [];
 
-        filteredLogs.forEach(log => {
-          const userName = users.find(u => u.id === log.user_id)?.name || 'Tidak Diketahui';
-          const date = log.check_in?.toDate().toLocaleDateString('id-ID') || '-';
-          const checkIn = log.check_in?.toDate().toLocaleTimeString('id-ID') || '-';
-          const checkOut = log.check_out?.toDate().toLocaleTimeString('id-ID') || '-';
-          const status = log.status === 'valid' ? 'Valid' : log.status === 'rejected' ? 'Ditolak' : 'Mencurigakan';
+        targetUsers.forEach(user => {
+          const userLogs = filteredLogs.filter(log => log.user_id === user.id);
+          let currentDate = new Date(exportStartDate);
+          const endDateObj = new Date(exportEndDate);
 
-          const logData = [userName, date, checkIn, checkOut, status];
-          tableRows.push(logData);
+          while (currentDate <= endDateObj) {
+            const dateStr = currentDate.toISOString().split('T')[0];
+            const dayOfWeek = currentDate.getDay();
+            const log = userLogs.find(l => l.check_in?.toDate().toISOString().split('T')[0] === dateStr);
+            
+            const globalHoliday = holidays.find(h => !h.user_id && (h.date === dateStr || h.day === dayOfWeek));
+            const userHoliday = holidays.find(h => h.user_id === user.id && (h.date === dateStr || h.day === dayOfWeek));
+            const isWeeklyOff = tenant?.off_days?.includes(dayOfWeek);
+            const holiday = globalHoliday || userHoliday;
+
+            const userName = user.name;
+            const date = currentDate.toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' });
+            const checkIn = log?.check_in?.toDate().toLocaleTimeString('id-ID') || '-';
+            const checkOut = log?.check_out?.toDate().toLocaleTimeString('id-ID') || '-';
+            const status = log ? (log.status === 'valid' ? 'Valid' : log.status === 'rejected' ? 'Ditolak' : log.status === 'alpha' ? 'Alpa' : 'Mencurigakan') : (holiday || isWeeklyOff ? 'LIBUR' : 'ALPA');
+            const ket = log?.rejection_reason || holiday?.name || (isWeeklyOff ? 'Libur Mingguan' : '-');
+
+            tableRows.push([userName, date, checkIn, checkOut, status, ket]);
+            currentDate.setDate(currentDate.getDate() + 1);
+          }
         });
 
         autoTable(doc, {
@@ -1037,7 +1073,18 @@ export function AdminDashboard({ profile }: { profile: UserProfile }) {
           startY: startY,
           theme: 'grid',
           styles: { fontSize: 8 },
-          headStyles: { fillColor: [22, 163, 74] }
+          headStyles: { fillColor: [22, 163, 74] },
+          didParseCell: function(data: any) {
+            if (data.row.raw && data.row.raw[4]) {
+               const status = data.row.raw[4].toString().toUpperCase();
+               if (status === 'LIBUR') {
+                 data.cell.styles.fillColor = [242, 242, 242]; // Light Gray
+               } else if (status === 'ALPA' || status === 'REJECTED' || status === 'DITOLAK') {
+                 data.cell.styles.fillColor = [255, 199, 206]; // Light Red
+                 data.cell.styles.textColor = [156, 0, 6];
+               }
+            }
+          }
         });
       } else if (pdfExportOptions.style === 'employee') {
         const targetUsers = exportUserId === 'all' ? users : users.filter(u => u.id === exportUserId);
@@ -1049,22 +1096,50 @@ export function AdminDashboard({ profile }: { profile: UserProfile }) {
           const startY = drawHeader(`Laporan Kehadiran: ${user.name}`, `Email: ${user.email}`);
 
           const tableColumn = ["No", "Tanggal", "Check-in", "Check-out", "Status", "Keterangan"];
-          const tableRows = userLogs.length > 0 ? userLogs.map((log, i) => [
-            i + 1,
-            log.check_in?.toDate().toLocaleDateString('id-ID') || '-',
-            log.check_in?.toDate().toLocaleTimeString('id-ID') || '-',
-            log.check_out?.toDate().toLocaleTimeString('id-ID') || '-',
-            log.status === 'valid' ? 'Valid' : log.status === 'rejected' ? 'Ditolak' : 'Mencurigakan',
-            log.rejection_reason || '-'
-          ]) : [[ "-", "Tidak ada data absensi", "-", "-", "-", "-" ]];
+          const tableRows: any[] = [];
+          
+          let currentDate = new Date(exportStartDate);
+          const endDateObj = new Date(exportEndDate);
+          let rowCount = 1;
+
+          while (currentDate <= endDateObj) {
+            const dateStr = currentDate.toISOString().split('T')[0];
+            const dayOfWeek = currentDate.getDay();
+            const log = userLogs.find(l => l.check_in?.toDate().toISOString().split('T')[0] === dateStr);
+            
+            const globalHoliday = holidays.find(h => !h.user_id && (h.date === dateStr || h.day === dayOfWeek));
+            const userHoliday = holidays.find(h => h.user_id === user.id && (h.date === dateStr || h.day === dayOfWeek));
+            const isWeeklyOff = tenant?.off_days?.includes(dayOfWeek);
+            const holiday = globalHoliday || userHoliday;
+
+            const date = currentDate.toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' });
+            const checkIn = log?.check_in?.toDate().toLocaleTimeString('id-ID') || '-';
+            const checkOut = log?.check_out?.toDate().toLocaleTimeString('id-ID') || '-';
+            const status = log ? (log.status === 'valid' ? 'Valid' : log.status === 'rejected' ? 'Ditolak' : log.status === 'alpha' ? 'Alpa' : 'Mencurigakan') : (holiday || isWeeklyOff ? 'LIBUR' : 'ALPA');
+            const ket = log?.rejection_reason || holiday?.name || (isWeeklyOff ? 'Libur Mingguan' : '-');
+
+            tableRows.push([rowCount++, date, checkIn, checkOut, status, ket]);
+            currentDate.setDate(currentDate.getDate() + 1);
+          }
 
           autoTable(doc, {
             head: [tableColumn],
-            body: tableRows,
+            body: tableRows.length > 0 ? tableRows : [[ "-", "Tidak ada data absensi", "-", "-", "-", "-" ]],
             startY: startY,
             theme: 'grid',
             styles: { fontSize: 8 },
-            headStyles: { fillColor: [22, 163, 74] }
+            headStyles: { fillColor: [22, 163, 74] },
+            didParseCell: function(data: any) {
+              if (data.row.raw && data.row.raw[4]) {
+                 const status = data.row.raw[4].toString().toUpperCase();
+                 if (status === 'LIBUR') {
+                   data.cell.styles.fillColor = [242, 242, 242]; // Light Gray
+                 } else if (status === 'ALPA' || status === 'REJECTED' || status === 'DITOLAK') {
+                   data.cell.styles.fillColor = [255, 199, 206]; // Light Red
+                   data.cell.styles.textColor = [156, 0, 6];
+                 }
+              }
+            }
           });
         });
       }

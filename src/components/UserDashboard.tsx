@@ -587,15 +587,22 @@ export function UserDashboard({ profile, onSwitchToAdmin }: { profile: UserProfi
   };
 
   const handleCheckOut = async () => {
-    if (!lastLog || lastLog.check_out) return;
+    // Check if already checked out today
+    const hasCheckedOutToday = history.some(log => log.check_out && log.check_out.toDate().toDateString() === new Date().toDateString());
+    if (hasCheckedOutToday) {
+       toast.error('Anda sudah check-out hari ini');
+       return;
+    }
     
     if (tenant && !isTimeInRange(tenant.check_out_time, tenant.check_out_end_time)) {
       toast.error(`Check-out hanya tersedia antara jam ${tenant.check_out_time} - ${tenant.check_out_end_time}`);
       return;
     }
     
-    // Check if journal is submitted for this attendance (only if journal feature is enabled)
-    if (tenant?.is_journal_enabled !== false) {
+    // Check if journal is submitted for this attendance (only if journal feature is enabled and user checked in)
+    const isCheckedInToday = lastLog && !lastLog.check_out && lastLog.check_in?.toDate().toDateString() === new Date().toDateString();
+    
+    if (isCheckedInToday && tenant?.is_journal_enabled !== false) {
       const hasJournal = journals.some(j => j.attendance_id === lastLog.id);
       if (!hasJournal) {
         toast.error('Anda harus mengirimkan jurnal mengajar sebelum check-out.');
@@ -609,7 +616,7 @@ export function UserDashboard({ profile, onSwitchToAdmin }: { profile: UserProfi
   };
 
   const processCheckOut = async () => {
-    if (!videoRef.current || !location || !tenant || !lastLog) return;
+    if (!videoRef.current || !location || !tenant) return;
     setIsProcessing(true);
 
     try {
@@ -645,13 +652,33 @@ export function UserDashboard({ profile, onSwitchToAdmin }: { profile: UserProfi
         reason = 'Wajah tidak cocok';
       }
 
-      await updateDoc(doc(db, 'attendance', lastLog.id), {
-        check_out: serverTimestamp(),
-        check_out_lat: location.lat,
-        check_out_lng: location.lng,
-        check_out_status: status,
-        check_out_reason: reason
-      });
+      const isCheckedInToday = lastLog && !lastLog.check_out && lastLog.check_in?.toDate().toDateString() === new Date().toDateString();
+
+      if (isCheckedInToday && lastLog) {
+        await updateDoc(doc(db, 'attendance', lastLog.id), {
+          check_out: serverTimestamp(),
+          check_out_lat: location.lat,
+          check_out_lng: location.lng,
+          check_out_status: status,
+          check_out_reason: reason
+        });
+      } else {
+        await addDoc(collection(db, 'attendance'), {
+          tenant_id: profile.tenant_id,
+          user_id: profile.id,
+          check_in: serverTimestamp(), 
+          lat: location.lat,
+          lng: location.lng,
+          status: 'alpha', 
+          is_late: true,
+          rejection_reason: 'Tidak check-in',
+          check_out: serverTimestamp(),
+          check_out_lat: location.lat,
+          check_out_lng: location.lng,
+          check_out_status: status,
+          check_out_reason: reason
+        });
+      }
 
       if (status === 'valid') toast.success('Check-out berhasil!');
       else if (status === 'suspicious') toast.warning('Check-out ditandai mencurigakan: ' + reason);
@@ -847,6 +874,7 @@ export function UserDashboard({ profile, onSwitchToAdmin }: { profile: UserProfi
   };
 
   const isCheckedIn = lastLog && !lastLog.check_out && lastLog.check_in?.toDate().toDateString() === new Date().toDateString();
+  const hasCheckedOutToday = history.some(log => log.check_out && log.check_out.toDate().toDateString() === new Date().toDateString());
   const currentJournals = journals.filter(j => j.attendance_id === lastLog?.id);
   const todayStr = new Date().toISOString().split('T')[0];
   const todayHoliday = holidays.find(h => h.date === todayStr);
@@ -1062,14 +1090,16 @@ export function UserDashboard({ profile, onSwitchToAdmin }: { profile: UserProfi
                   </p>
                 </div>
 
-                <div className="flex items-center gap-1.5 bg-muted px-3 py-1.5 rounded-xl border border-gray-100">
-                  <Clock className="h-3.5 w-3.5 text-blue-500" />
-                  <span className="text-[10px] font-bold text-muted-foreground uppercase">
-                    {isCheckedIn 
-                      ? `Check-out: ${tenant?.check_out_time || '16:00'}`
-                      : `Check-in: ${tenant?.check_in_time || '07:00'}`
-                    }
-                  </span>
+                <div className="flex flex-col items-center gap-3">
+                  <div className="flex items-center gap-1.5 bg-muted px-3 py-1.5 rounded-xl border border-gray-100">
+                    <Clock className="h-3.5 w-3.5 text-blue-500" />
+                    <span className="text-[10px] font-bold text-muted-foreground uppercase">
+                      {isCheckedIn 
+                        ? `Check-out: ${tenant?.check_out_time || '16:00'}`
+                        : `Check-in: ${tenant?.check_in_time || '07:00'}`
+                      }
+                    </span>
+                  </div>
                 </div>
               </CardContent>
             </Card>
