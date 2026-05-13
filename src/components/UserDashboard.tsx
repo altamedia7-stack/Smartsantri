@@ -2672,8 +2672,8 @@ export function UserDashboard({ profile, onSwitchToAdmin }: { profile: UserProfi
       )}
 
       {/* Bottom Navigation Bar for Mobile */}
-      <div className="fixed bottom-0 left-0 right-0 z-50 border-t border-gray-100 bg-white/80 backdrop-blur-2xl pb-safe sm:hidden rounded-t-[1.5rem] shadow-[0_-10px_40px_rgba(0,0,0,0.05)]">
-        <div className="flex justify-around items-center px-1 py-1 relative h-16">
+      <div className="fixed bottom-0 left-0 right-0 z-50 border-t border-gray-100 bg-white/80 backdrop-blur-2xl pb-4 pt-1 sm:hidden rounded-t-[1.5rem] shadow-[0_-10px_40px_rgba(0,0,0,0.05)]">
+        <div className="flex justify-around items-center px-2 py-1 relative h-16">
           <button 
             onClick={() => setActiveTab('home')}
             className={`flex flex-col items-center justify-center w-14 h-14 rounded-2xl transition-all ${activeTab === 'home' ? 'text-green-600 bg-green-50' : 'text-gray-400'}`}
